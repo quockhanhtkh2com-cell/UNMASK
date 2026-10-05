@@ -1,0 +1,24 @@
+{
+  "_comment": "KHOÁ ĐỀ THI. Chạy unmask/train.py để điền weights/threshold THẬT rồi COMMIT file này TRƯỚC khi chạy E3-E5. Không sửa sau khi nhìn đề thi.",
+  "locked": false,
+  "locked_at": null,
+  "locked_by": null,
+  "packed_score": {
+    "model": "logistic",
+    "weights": null,
+    "threshold": null,
+    "train_groups": ["G0", "G1"],
+    "train_packer_seen": "upx"
+  },
+  "dual_check": {
+    "similarity_threshold": null
+  },
+  "detector_D1": {
+    "method": "mahalanobis",
+    "percentile": 95,
+    "fitted_on": ["G0", "val"],
+    "threshold_value": null
+  },
+  "seeds": [0, 1, 2],
+  "test_set_sha256_manifest": null
+}

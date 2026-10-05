@@ -1,0 +1,23 @@
+# Cấu hình chung — copy thành config/config.yaml để chạy (config.yaml KHÔNG bắt buộc commit)
+paths:
+  dataset: dataset.csv          # đổi sang mock/mock_dataset.csv khi dev
+  manifest: manifest.csv
+  results_dir: results
+  figs_dir: figs
+
+experiment:
+  seeds: [0, 1, 2]              # 3 seed
+  pack_ratios: [0.2, 0.5, 0.8] # 3 tỉ lệ mẫu pack
+  report_ftr_at_ratio: 0.5     # cột FTR@50% trong bảng chính
+
+detector:                      # D1 — chuông báo drift dùng CHUNG cho mọi cổng
+  method: mahalanobis          # mahalanobis | isolation_forest
+  percentile: 95               # ngưỡng P95, học trên validation rồi KHOÁ
+
+packed_score:                  # F3 bước 1
+  model: logistic              # logistic | manual_weights
+  train_groups: [G0, G1]       # chỉ học trên G0 + G1-UPX (P-seen)
+  train_packer_seen: upx       # packer "đã thấy"
+
+f2_rule:                       # F2 — luật entropy cũ
+  entropy_max_threshold: 7.0

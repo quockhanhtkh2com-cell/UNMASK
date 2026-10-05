@@ -1,0 +1,41 @@
+# === UNMASK — LUẬT VÀNG: KHÔNG commit mẫu malware / file đã pack ===
+# Chỉ feature (dataset.csv thật), hash, script được lên git.
+data/raw/*
+data/packed/*
+data/lowentropy/*
+data/wild/*
+!data/**/.gitkeep
+*.exe
+*.dll
+*.bin
+*.zip
+*.7z
+*.rar
+
+# Dataset THẬT (sinh trong VM) — không đẩy lên git công khai nếu lớn/nhạy cảm.
+# Nếu nhóm thống nhất commit dataset.csv thật (chỉ feature+hash) thì xoá dòng dưới.
+dataset.csv
+manifest.csv
+
+# Mock thì ĐƯỢC commit (để team code song song)
+!mock/mock_dataset.csv
+!mock/mock_manifest.csv
+
+# Kết quả nặng / ảnh — tuỳ nhóm, mặc định cho lên
+# results/*.csv  figs/*.png  -> để lại
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+*.egg-info/
+.ipynb_checkpoints/
+.pytest_cache/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

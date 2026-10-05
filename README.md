@@ -1,0 +1,78 @@
+# UNMASK — Vỏ đổi hay lõi đổi?
+Định lượng drift do packing và giới hạn của bộ lọc dựa trên đặc trưng tĩnh · IAM302t · Nhóm 4
+
+> ⚠️ **Công cụ chỉ ĐỌC feature tĩnh của file PE, KHÔNG chạy file.** Đọc `docs/SAFETY.md` trước.
+
+## Ý tưởng 1 dòng
+Khi chuông báo drift kêu — là do **đổi vỏ** (đổi packer) hay **đổi lõi** (malware mới thật)?
+Dựng cổng lọc **F3 (UNMASK)** đặt trước detector, so với **F0** (không lọc), **F1** (Detect It Easy),
+**F2** (luật entropy cũ). 4 cổng dùng **chung một chuông D1**. Học bằng UPX, thi bằng mọi thứ còn lại.
+
+## Cây thư mục
+```
+UNMASK/
+├─ schema.md                 # HỢP ĐỒNG cột dataset.csv/manifest — đọc đầu tiên
+├─ config/                   # config.example.yaml + thresholds.locked.json (khoá đề thi)
+├─ data/{raw,packed,lowentropy,wild}/   # mẫu — KHÔNG lên git
+├─ mock/                     # mock_dataset.csv để code song song ngay
+├─ src/
+│  ├─ extract_features.py    # [Tuấn] trích feature tĩnh (pefile/LIEF)
+│  ├─ split_data.py          # [Trúc] chia tập theo mẫu gốc, chống rò rỉ
+│  ├─ detector.py            # [Đức] D1: Mahalanobis / IsolationForest, P95
+│  ├─ eval_metrics.py        # [Trúc] FTR, FNR, Wilson CI, McNemar
+│  ├─ f1_die.py              # [Trúc] cổng F1 — Detect It Easy
+│  ├─ f2_rule.py             # [Trúc] cổng F2 — entropy>7 AND section lạ
+│  └─ check_data.py          # [Trúc] E0 kiểm tra dữ liệu
+├─ unmask/                   # [Tuấn] module pip — cổng F3
+│  ├─ packed_score.py        #   bước 1: điểm bị pack (logistic)
+│  ├─ dual_check.py          #   bước 2: chống lỗi L1
+│  ├─ filter.py              #   filter(file) -> {packed_score, decision, evidence}
+│  └─ train.py               #   học trọng số + quét ngưỡng -> khoá
+├─ experiments/
+│  ├─ run_experiments.py     # [Đức] E0b, E1–E6 (3 seed × 3 tỉ lệ)
+│  └─ build_main_table.py    # [Đức] bang_chinh.csv/.md
+├─ app.py                    # [Trúc] demo Streamlit (localhost)
+├─ results/  figs/           # output
+└─ tests/                    # unit test (eval_metrics...)
+```
+
+## Cài & chạy thử trên mock (clone về làm ngay)
+```bash
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+
+# 1) sinh mock để code song song
+python mock/make_mock_dataset.py
+
+# 2) kiểm tra dữ liệu
+python src/check_data.py --dataset mock/mock_dataset.csv
+
+# 3) chạy thử cổng F3 trên mock
+python -m unmask.filter --dataset mock/mock_dataset.csv --out results/demo_f3.csv
+
+# 4) chạy thử 1 thí nghiệm
+python experiments/run_experiments.py --exp e2 --dataset mock/mock_dataset.csv --seed 0 --pack-ratio 0.5
+
+# 5) demo
+streamlit run app.py
+
+# test
+pytest -q
+```
+
+## 4 cổng lọc & 3 quyết định của F3
+- **F0** không lọc · **F1** DiE (packed→loại) · **F2** entropy_max>7.0 AND section lạ · **F3** UNMASK.
+- F3 trả: **PASS** (không pack→vào chuông) · **FILTERED** (chỉ đổi vỏ→loại, ghi log) · **FLAGGED** (pack nhưng ruột lạ→vào chuông + cờ).
+
+## Câu hỏi nghiên cứu → đo bằng
+- **RQ1** bao nhiêu % báo drift là do đổi packer → **FTR** theo tỉ lệ pack
+- **RQ2** bộ lọc có tổng quát sang packer chưa gặp / low-entropy / wild → tỉ lệ lọc đúng theo biến thể
+- **RQ3** drift thật trùng đổi packer (L1), bỏ sót bao nhiêu, dual-check giảm bao nhiêu → **FNR** G2/G3
+- **RQ4** UNMASK có hơn Detect It Easy không → so FTR, FNR F3 vs F1
+
+## Luật vàng
+1. Đề thi giấu kín đến lúc đánh giá. 2. Mọi cổng dùng CHUNG một chuông. 3. Đo ra sao báo vậy (kể cả khi UNMASK thua DiE).
+
+## Trạng thái skeleton
+Các file `src/`, `unmask/`, `experiments/`, `app.py` là **khung có hợp đồng hàm + chạy được trên mock**.
+Chỗ cần điền ghi rõ `# TODO(<người>)`. `eval_metrics.py` và `check_data.py` đã implement đầy đủ.

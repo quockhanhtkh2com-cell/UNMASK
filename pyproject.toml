@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "unmask"
+version = "0.1.0"
+description = "UNMASK — cổng lọc packing đặt trước drift detector (feature tĩnh)"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "numpy>=1.24",
+    "pandas>=2.0",
+    "scikit-learn>=1.3",
+    "pefile>=2023.2.7",
+]
+
+[project.optional-dependencies]
+demo = ["streamlit>=1.30"]
+dev = ["pytest>=7.4", "scipy>=1.10", "lief>=0.14.0"]
+
+[tool.setuptools]
+packages = ["unmask"]
+
+[project.scripts]
+unmask-filter = "unmask.filter:main"
