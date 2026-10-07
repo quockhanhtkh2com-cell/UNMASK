@@ -40,3 +40,36 @@ def test_few_normal_apis_is_false():
 
 def test_no_named_imports_is_false():
     assert E.only_loader_imports([]) == 0
+
+
+def test_origin_self_for_unpacked_groups():
+    assert E.resolve_origin("G0", "abc", "a.exe", {}) == "abc"
+    assert E.resolve_origin("G2", "abc", "a.exe", {}) == "abc"
+
+
+def test_origin_from_map_for_packed_groups():
+    assert E.resolve_origin("G1", "x", "a_upx.exe", {"a_upx.exe": "orig"}) == "orig"
+    assert E.resolve_origin("G3", "x", "a_upx.exe", {"a_upx.exe": "orig"}) == "orig"
+
+
+def test_origin_missing_for_packed_group_is_none():
+    assert E.resolve_origin("G1", "x", "a_upx.exe", {}) is None
+
+
+def test_drift_truth_by_group():
+    import pandas as pd
+    df = E.add_drift_truth(pd.DataFrame({"group": ["G0", "G1", "G2", "G3"]}))
+    assert list(df["is_drift_truth"]) == [0, 0, 1, 1]
+
+
+def test_drift_truth_bad_group_raises():
+    import pandas as pd
+    import pytest
+    with pytest.raises(ValueError):
+        E.add_drift_truth(pd.DataFrame({"group": ["G9"]}))
+
+
+def test_load_origin_map(tmp_path):
+    f = tmp_path / "m.csv"
+    f.write_text("filename,origin_sha256\na.exe,aaa\nb.exe,\n", encoding="utf-8")
+    assert E.load_origin_map(str(f)) == {"a.exe": "aaa"}

@@ -173,42 +173,102 @@ def add_import_shrink(df):
     return df
 
 
+def load_origin_map(path: str) -> dict:
+    """Đọc CSV 2 cột `filename,origin_sha256` -> dict {filename: origin_sha256}."""
+    import csv
+    with open(path, newline="", encoding="utf-8") as f:
+        rd = csv.DictReader(f)
+        need = {"filename", "origin_sha256"}
+        if not rd.fieldnames or not need <= set(rd.fieldnames):
+            raise ValueError(f"{path}: cần cột {sorted(need)}, có {rd.fieldnames}")
+        return {r["filename"]: r["origin_sha256"].strip() for r in rd if r["origin_sha256"].strip()}
+
+
+def resolve_origin(group: str, sha: str, filename: str, origin_map: dict):
+    """G0/G2 (chưa pack): mẫu gốc tự trỏ về chính nó. G1/G3 (đã pack): lấy từ origin_map.
+    Trả None nếu G1/G3 mà không có trong map (người gọi phải ghi lỗi, không được để trống)."""
+    if group in ("G0", "G2"):
+        return sha
+    return origin_map.get(filename) or None
+
+
+def add_drift_truth(df):
+    """Thêm is_drift_truth theo GROUP_IS_DRIFT (G0,G1=0; G2,G3=1). Group lạ -> ValueError."""
+    bad = sorted(set(df["group"]) - set(S.GROUP_IS_DRIFT))
+    if bad:
+        raise ValueError(f"group không hợp lệ: {bad}")
+    df = df.copy()
+    df["is_drift_truth"] = df["group"].map(S.GROUP_IS_DRIFT).astype(int)
+    return df
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--in", dest="indir", help="thư mục chứa mẫu (trong VM)")
     ap.add_argument("--group"); ap.add_argument("--family")
     ap.add_argument("--variant", default="none"); ap.add_argument("--packer", default="none")
     ap.add_argument("--finalize", help="CSV thô -> chuẩn hoá import_shrink")
+    ap.add_argument("--origin-map", dest="origin_map", help="CSV filename,origin_sha256 (bắt buộc cho G1/G3)")
+    ap.add_argument("--errors", help="file ghi lỗi (mặc định: extract_errors.csv cạnh --out, ghi nối)")
     ap.add_argument("--out", required=True)
     args = ap.parse_args()
     import pandas as pd
 
     if args.finalize:
-        df = add_import_shrink(pd.read_csv(args.finalize))
+        df = add_drift_truth(add_import_shrink(pd.read_csv(args.finalize)))
         df.to_csv(args.out, index=False)
-        print(f"[finalize] chuẩn hoá import_shrink -> {args.out}")
+        print(f"[finalize] chuẩn hoá import_shrink + is_drift_truth -> {args.out}")
         return
 
+    import csv
     import hashlib
-    rows = []
+    if not args.indir or not args.group:
+        ap.error("cần --in và --group (hoặc dùng --finalize)")
+    for nm, val, ok in (("group", args.group, S.VALID_GROUPS),
+                        ("variant", args.variant, S.VALID_VARIANTS),
+                        ("packer", args.packer, S.VALID_PACKERS)):
+        if val not in ok:
+            ap.error(f"--{nm} '{val}' không hợp lệ, hợp lệ: {sorted(ok)}")
+    origin_map = load_origin_map(args.origin_map) if args.origin_map else {}
+    err_path = args.errors or os.path.join(os.path.dirname(os.path.abspath(args.out)), "extract_errors.csv")
+
+    rows, errors = [], []
     for fn in sorted(os.listdir(args.indir)):
         p = os.path.join(args.indir, fn)
         if not os.path.isfile(p):
             continue
         try:
             feat = extract_one(p)
-        except Exception as e:  # pack lỗi / không parse được -> ghi lại, không chết
+            with open(p, "rb") as fh:
+                sha = hashlib.sha256(fh.read()).hexdigest()
+        except Exception as e:  # không parse được -> ghi lại, không chết
+            errors.append({"file": fn, "group": args.group, "family": args.family, "reason": f"parse: {e}"})
             print(f"  [skip] {fn}: {e}")
             continue
+        origin = resolve_origin(args.group, sha, fn, origin_map)
+        if origin is None:
+            errors.append({"file": fn, "group": args.group, "family": args.family,
+                           "reason": "thiếu origin_sha256 trong --origin-map"})
+            print(f"  [skip] {fn}: thiếu origin_sha256")
+            continue
         feat.update({
-            "sha256": hashlib.sha256(open(p, "rb").read()).hexdigest(),
-            "family": args.family, "group": args.group,
-            "variant": args.variant, "packer": args.packer,
-            "origin_sha256": "",  # TODO(Khánh): map biến thể -> mẫu gốc khi pack
+            "sha256": sha, "family": args.family, "group": args.group,
+            "variant": args.variant, "packer": args.packer, "origin_sha256": origin,
         })
         rows.append(feat)
+
+    if errors:
+        new_file = not os.path.exists(err_path)
+        with open(err_path, "a", newline="", encoding="utf-8") as fh:
+            w = csv.DictWriter(fh, fieldnames=["file", "group", "family", "reason"])
+            if new_file:
+                w.writeheader()
+            w.writerows(errors)
+    if not rows:
+        print(f"[extract] 0 file hợp lệ, {len(errors)} lỗi -> {err_path} (không ghi {args.out})")
+        sys.exit(1)
     pd.DataFrame(rows).to_csv(args.out, index=False)
-    print(f"[extract] {len(rows)} file -> {args.out}")
+    print(f"[extract] {len(rows)} file, {len(errors)} lỗi -> {args.out}")
 
 
 if __name__ == "__main__":
