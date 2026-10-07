@@ -32,6 +32,14 @@ DEFAULT_WEIGHTS = {
 }
 
 
+def import_shrink(num_api, median_api) -> float:
+    """import_table_shrink = 1 - num_api / trung vị num_api của mẫu CHƯA PACK (khớp
+    add_import_shrink trong src/extract_features.py). Chưa biết trung vị -> 0,0 (không suy diễn)."""
+    if not median_api or median_api != median_api:  # None, 0 hoặc NaN
+        return 0.0
+    return round(max(0.0, 1 - float(num_api) / float(median_api)), 3)
+
+
 def _sigmoid(x: float) -> float:
     return 1 / (1 + math.exp(-max(-30, min(30, x))))
 

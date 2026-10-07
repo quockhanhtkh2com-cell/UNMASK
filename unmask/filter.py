@@ -23,7 +23,7 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 import schema_cols as S  # noqa: E402
-from .packed_score import PackedScorer
+from .packed_score import PackedScorer, import_shrink
 from .dual_check import DualCheck
 
 
@@ -60,6 +60,11 @@ def filter_file(path: str, locked_config: dict | None = None) -> dict:
     """Chạy F3 trên 1 file PE thật: trích feature tĩnh rồi quyết định. KHÔNG chạy file."""
     from extract_features import extract_one
     feat = extract_one(path)
+    if locked_config is None:
+        locked_config = _load_locked()
+    # extract_one chỉ trả num_api thô; mô hình học trên import_table_shrink ĐÃ chuẩn hoá
+    med = ((locked_config or {}).get("import_shrink") or {}).get("median_api")
+    feat["import_table_shrink"] = import_shrink(feat["num_api"], med)
     out = filter_row(feat, locked_config)
     out["file"] = os.path.basename(path)
     return out

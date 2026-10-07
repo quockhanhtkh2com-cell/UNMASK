@@ -77,6 +77,9 @@ def train(dataset: str, out: str, seed: int = 0):
         if tpr - fpr > best_j:
             best_j, best_thr = tpr - fpr, float(thr)
 
+    g0_api = prep[prep.group == "G0"]["num_api"]
+    median_api = float(g0_api.median()) if len(g0_api) else None
+
     cfg_path = out
     base = {}
     if os.path.exists(cfg_path):
@@ -85,6 +88,7 @@ def train(dataset: str, out: str, seed: int = 0):
         "locked": True,
         "locked_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "locked_by": "train.py",
+        "import_shrink": {"median_api": median_api, "source": "G0 train/val"},
         "packed_score": {
             "model": "logistic",
             "weights": weights,
