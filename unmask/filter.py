@@ -77,7 +77,10 @@ def filter_file(path: str, locked_config: dict | None = None,
 
 
 def _load_locked() -> dict | None:
-    p = os.path.join(os.path.dirname(__file__), "..", "config", "thresholds.locked.json")
+    """Config khoá: biến môi trường UNMASK_CONFIG (dùng khi cài bằng pip) -> nếu không có thì
+    config/thresholds.locked.json cạnh mã nguồn (chạy trong repo). Chưa khoá -> None."""
+    p = os.environ.get("UNMASK_CONFIG") or os.path.join(
+        os.path.dirname(__file__), "..", "config", "thresholds.locked.json")
     if os.path.exists(p):
         cfg = json.load(open(p))
         return cfg if cfg.get("locked") else None

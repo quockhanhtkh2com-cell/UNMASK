@@ -21,6 +21,13 @@ dev = ["pytest>=7.4", "scipy>=1.10", "lief>=0.14.0"]
 
 [tool.setuptools]
 packages = ["unmask"]
+# unmask import schema_cols / extract_features từ src/. Cài chúng thành module cùng cấp để
+# `pip install .` chạy được mà KHÔNG phải di chuyển file nào.
+py-modules = ["schema_cols", "extract_features"]
+
+[tool.setuptools.package-dir]
+unmask = "unmask"
+"" = "src"
 
 [project.scripts]
 unmask-filter = "unmask.filter:main"
