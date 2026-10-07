@@ -73,3 +73,19 @@ def test_load_origin_map(tmp_path):
     f = tmp_path / "m.csv"
     f.write_text("filename,origin_sha256\na.exe,aaa\nb.exe,\n", encoding="utf-8")
     assert E.load_origin_map(str(f)) == {"a.exe": "aaa"}
+
+
+def test_ep_section_wx_true_for_rwx():
+    assert E.ep_section_wx(0xE0000020) == 1  # kieu section UPX1: R+W+X
+
+
+def test_ep_section_wx_false_for_normal_text():
+    assert E.ep_section_wx(0x60000020) == 0  # .text: R+X
+
+
+def test_ep_section_wx_false_for_data():
+    assert E.ep_section_wx(0xC0000040) == 0  # .data: R+W
+
+
+def test_ep_section_wx_false_for_write_only():
+    assert E.ep_section_wx(0x80000000) == 0

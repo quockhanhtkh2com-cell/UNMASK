@@ -78,6 +78,16 @@ def window_entropy_ratio(raw: bytes, win: int = 1024, thr: float = 7.0) -> float
     return round(hi / n, 3)
 
 
+IMAGE_SCN_MEM_EXECUTE = 0x20000000
+IMAGE_SCN_MEM_WRITE = 0x80000000
+
+
+def ep_section_wx(characteristics: int) -> int:
+    """1 nếu section chứa entry point vừa Writable vừa Executable (W+X), khớp schema.md."""
+    both = IMAGE_SCN_MEM_EXECUTE | IMAGE_SCN_MEM_WRITE
+    return 1 if (characteristics & both) == both else 0
+
+
 def extract_one(path: str) -> dict:
     """Trả dict feature cho 1 file PE. import_table_shrink để tạm = số API thô (chuẩn hoá sau)."""
     import pefile
@@ -97,7 +107,7 @@ def extract_one(path: str) -> dict:
         raw_total += s.SizeOfRawData
         virt_total += max(1, s.Misc_VirtualSize)
         if s.contains_rva(ep):
-            ep_writable = 1 if (s.Characteristics & 0x80000000) else 0  # WRITE
+            ep_writable = ep_section_wx(s.Characteristics)  # W+X theo schema.md
 
     def classify(nm: str) -> str:
         if nm in KNOWN_PACKER_SECTIONS:
