@@ -17,6 +17,7 @@ import argparse
 import math
 import os
 import sys
+import numpy as np
 
 sys.path.insert(0, os.path.dirname(__file__))
 import schema_cols as S  # noqa: E402
@@ -45,6 +46,22 @@ def shannon_entropy(data: bytes) -> float:
             p = c / n
             ent -= p * math.log2(p)
     return ent
+
+
+def window_entropy_ratio(raw: bytes, win: int = 1024, thr: float = 7.0) -> float:
+    """Tỉ lệ cửa sổ `win` byte (không chồng lấp) có entropy Shannon > thr.
+    File ngắn hơn 1 cửa sổ -> 0.0."""
+    a = np.frombuffer(raw, dtype=np.uint8)
+    n = len(a) // win
+    if n == 0:
+        return 0.0
+    hi = 0
+    for i in range(n):
+        c = np.bincount(a[i * win:(i + 1) * win], minlength=256)
+        p = c[c > 0] / win
+        if -(p * np.log2(p)).sum() > thr:
+            hi += 1
+    return round(hi / n, 3)
 
 
 def extract_one(path: str) -> dict:
@@ -103,7 +120,7 @@ def extract_one(path: str) -> dict:
         "entropy_file": round(shannon_entropy(raw), 3),
         "entropy_max_section": round(max(sec_entropies) if sec_entropies else 0, 3),
         "entropy_mean_section": round(sum(sec_entropies) / len(sec_entropies), 3) if sec_entropies else 0,
-        "high_entropy_byte_ratio": round(sum(e > 7.0 for e in sec_entropies) / len(sec_entropies), 3) if sec_entropies else 0,
+        "high_entropy_byte_ratio": window_entropy_ratio(raw),
         "num_sections": len(pe.sections),
         "section_name_class": sec_class,
         "raw_virtual_ratio": round(raw_total / virt_total, 3) if virt_total else 0,
