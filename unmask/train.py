@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 import schema_cols as S  # noqa: E402
 from packed_score import NUMERIC, SECTION_CLASS_WEIGHT  # type: ignore  # noqa: E402
+from dual_check import fit_from_dataframe  # type: ignore  # noqa: E402
 
 
 def _featurize(df):
@@ -80,6 +81,10 @@ def train(dataset: str, out: str, seed: int = 0):
     g0_api = prep[prep.group == "G0"]["num_api"]
     median_api = float(g0_api.median()) if len(g0_api) else None
 
+    # dual-check: tham chiếu G0 train, ngưỡng P95 trên G0 val (hoặc leave-one-out nếu chưa có val)
+    core_cols = [c for c in S.CORE_FEATURE_COLS if c != "section_name_class"]
+    dc, dc_info = fit_from_dataframe(df[df.split.isin(["train", "val"])], core_cols)
+
     cfg_path = out
     base = {}
     if os.path.exists(cfg_path):
@@ -101,7 +106,7 @@ def train(dataset: str, out: str, seed: int = 0):
     })
     base.setdefault("detector_D1", {"method": "mahalanobis", "percentile": 95,
                                     "fitted_on": ["G0", "val"], "threshold_value": None})
-    base.setdefault("dual_check", {"similarity_threshold": None})
+    base["dual_check"] = {**dc.to_config(), **dc_info}
     base["seeds"] = [0, 1, 2]
     json.dump(base, open(cfg_path, "w"), indent=2, ensure_ascii=False)
     print(f"[train] threshold={best_thr:.3f}  weights={ {k: round(v,2) for k,v in weights.items()} }")
