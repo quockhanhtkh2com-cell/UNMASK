@@ -16,3 +16,6 @@ pytest>=7.4
 
 # (Tuỳ chọn) đóng gói module
 # build, setuptools, wheel
+
+
+matplotlib>=3.7
