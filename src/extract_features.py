@@ -48,6 +48,20 @@ def shannon_entropy(data: bytes) -> float:
     return ent
 
 
+# Tập API "loader" tối thiểu: file chỉ import những hàm này gần như chắc chắn là stub tự giải nén.
+LOADER_APIS = frozenset({
+    "getprocaddress", "loadlibrarya", "loadlibraryw", "loadlibraryexa", "loadlibraryexw",
+    "virtualprotect", "virtualalloc", "exitprocess",
+})
+
+
+def only_loader_imports(api_names) -> int:
+    """1 nếu có ít nhất 1 API được import theo tên và TẤT CẢ đều nằm trong LOADER_APIS.
+    Import theo số thứ tự (không có tên) bị bỏ qua. Không có API nào -> 0."""
+    names = {str(n).lower() for n in api_names if n}
+    return 1 if names and names <= LOADER_APIS else 0
+
+
 def window_entropy_ratio(raw: bytes, win: int = 1024, thr: float = 7.0) -> float:
     """Tỉ lệ cửa sổ `win` byte (không chồng lấp) có entropy Shannon > thr.
     File ngắn hơn 1 cửa sổ -> 0.0."""
@@ -96,9 +110,12 @@ def extract_one(path: str) -> dict:
                  else "weird" if "weird" in classes else "standard")
 
     num_dll = num_api = 0
+    api_names = []
     if hasattr(pe, "DIRECTORY_ENTRY_IMPORT"):
         num_dll = len(pe.DIRECTORY_ENTRY_IMPORT)
         num_api = sum(len(e.imports) for e in pe.DIRECTORY_ENTRY_IMPORT)
+        api_names = [i.name.decode("latin-1", "ignore") for e in pe.DIRECTORY_ENTRY_IMPORT
+                     for i in e.imports if i.name]
 
     # overlay = phần dữ liệu sau section cuối
     last_end = max((s.PointerToRawData + s.SizeOfRawData) for s in pe.sections) if pe.sections else 0
@@ -128,7 +145,7 @@ def extract_one(path: str) -> dict:
         "num_dll": num_dll,
         "num_api": num_api,
         "import_table_shrink": float(num_api),  # tạm thời; finalize sẽ chuẩn hoá
-        "only_dynamic_loader_imports": 1 if num_api and num_api <= 10 else 0,
+        "only_dynamic_loader_imports": only_loader_imports(api_names),
         "file_size": file_size,
         "size_of_headers": pe.OPTIONAL_HEADER.SizeOfHeaders,
         "checksum_valid": checksum_valid,
