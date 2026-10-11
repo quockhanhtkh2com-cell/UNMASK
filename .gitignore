@@ -4,6 +4,8 @@ data/raw/*
 data/packed/*
 data/lowentropy/*
 data/wild/*
+data/raw_zips/
+data/benchmfc/
 !data/**/.gitkeep
 *.exe
 *.dll
@@ -11,6 +13,10 @@ data/wild/*
 *.zip
 *.7z
 *.rar
+
+# === KHÓA BÍ MẬT — TUYỆT ĐỐI KHÔNG commit ===
+scripts/auth_key.txt
+*.key
 
 # Dataset THẬT (sinh trong VM) — không đẩy lên git công khai nếu lớn/nhạy cảm.
 # Nếu nhóm thống nhất commit dataset.csv thật (chỉ feature+hash) thì xoá dòng dưới.

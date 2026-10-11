@@ -128,9 +128,12 @@ def add_import_shrink(df):
     """Chuẩn hoá import_table_shrink = 1 - (num_api / trung vị num_api của mẫu CHƯA PACK cùng họ).
     Càng gần 1 = import teo mạnh (dấu hiệu pack)."""
     import numpy as np
-    base = df[df["group"].isin(["G0", "G2"])].groupby("family")["num_api"].median()
+    # baseline theo (họ × is_dotnet): native so native, .NET so .NET
+    # (.NET có num_api~1 sẽ đầu độc trung vị native nếu gộp chung -> phải tách)
+    base = (df[df["group"].isin(["G0", "G2"])]
+            .groupby(["family", "is_dotnet"])["num_api"].median())
     def shrink(row):
-        med = base.get(row["family"], np.nan)
+        med = base.get((row["family"], row["is_dotnet"]), np.nan)
         if not med or med != med:
             return 0.0
         return round(max(0.0, 1 - row["num_api"] / med), 3)
