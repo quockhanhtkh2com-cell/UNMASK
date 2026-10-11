@@ -54,14 +54,22 @@ def _gate_decisions(gate: str, df, scorer, dual) -> list[str]:
     raise ValueError(gate)
 
 
-def run(exp: str, dataset: str, seed: int, pack_ratio: float, out_dir: str):
+def run(exp: str, dataset: str, seed: int, pack_ratio: float, out_dir: str, detector_method: str = "mahalanobis"):
     import numpy as np, pandas as pd
     df = pd.read_csv(dataset)
 
-    # chuông D1 CHUNG: fit trên G0, khoá P95 trên G0 (mock). TODO(Đức): dùng val thật + nền EMBER.
-    g0 = df[df.group == "G0"][FEATURE_NUM].to_numpy(float)
-    det = DriftDetector(method="mahalanobis", seed=seed).fit(g0)
-    det.lock_threshold(g0, p=95)
+    # chuông D1 CHUNG: fit trên G0 (train), khoá P95 trên G0 (val).
+    g0_train = df[(df.group == "G0") & (df.split == "train")][FEATURE_NUM].to_numpy(float)
+    g0_val = df[(df.group == "G0") & (df.split == "val")][FEATURE_NUM].to_numpy(float)
+
+    # Fallback an toàn nếu g0_train hoặc g0_val rỗng
+    if len(g0_train) == 0:
+        g0_train = df[df.group == "G0"][FEATURE_NUM].to_numpy(float)
+    if len(g0_val) == 0:
+        g0_val = g0_train
+
+    det = DriftDetector(method=detector_method, seed=seed).fit(g0_train)
+    det.lock_threshold(g0_val, p=95)
 
     # F3 scorer + dual-check
     scorer = PackedScorer()  # TODO(Tuấn/Đức): load config/thresholds.locked.json khi đã khoá
@@ -108,9 +116,10 @@ def main():
     ap.add_argument("--dataset", required=True)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--pack-ratio", type=float, default=0.5)
+    ap.add_argument("--detector", default="mahalanobis", choices=["mahalanobis", "isolation_forest"])
     ap.add_argument("--out-dir", default=os.path.join(HERE, "..", "results"))
     args = ap.parse_args()
-    run(args.exp, args.dataset, args.seed, args.pack_ratio, args.out_dir)
+    run(args.exp, args.dataset, args.seed, args.pack_ratio, args.out_dir, detector_method=args.detector)
 
 
 if __name__ == "__main__":
