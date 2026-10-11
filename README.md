@@ -76,3 +76,36 @@ pytest -q
 ## Trạng thái skeleton
 Các file `src/`, `unmask/`, `experiments/`, `app.py` là **khung có hợp đồng hàm + chạy được trên mock**.
 Chỗ cần điền ghi rõ `# TODO(<người>)`. `eval_metrics.py` và `check_data.py` đã implement đầy đủ.
+
+## Cài đặt như module pip
+
+```bash
+pip install .              # trong thư mục repo, đã bật venv
+pip install -e ".[dev]"    # nếu muốn sửa code và chạy test
+```
+
+Dùng trong Python (chỉ đọc tĩnh, KHÔNG chạy file):
+
+```python
+from unmask import filter_file, filter_row
+filter_file("mau.exe")                       # F3 đầy đủ: PASS / FILTERED / FLAGGED
+filter_file("mau.exe", use_dualcheck=False)  # F3a (ablation, không dual-check)
+```
+
+CLI trên dataset (mock hoặc thật):
+
+```bash
+unmask-filter --dataset mock/mock_dataset.csv                  # F3
+unmask-filter --dataset mock/mock_dataset.csv --no-dualcheck   # F3a
+```
+
+Config khoá: trong repo, `unmask` đọc `config/thresholds.locked.json`. Khi cài bằng pip thì
+đặt đường dẫn bằng biến môi trường `UNMASK_CONFIG` (file do `unmask/train.py` sinh ra).
+Chưa có config khoá thì `filter_file` dùng trọng số mặc định CHƯA hiệu chỉnh nên kết quả không
+có ý nghĩa, và F3 đầy đủ sẽ báo `ValueError` thay vì âm thầm chạy như F3a.
+
+Ghi chú đóng gói: `schema_cols` và `extract_features` (nằm trong `src/`) được cài thành module
+cùng cấp với `unmask` để import không lỗi; không di chuyển file nào. Nếu nhóm muốn gom vào
+`unmask/` thì đổi sau.
+
+An toàn: mẫu malware chỉ nằm trong VM cô lập; không commit mẫu hay file packed (xem SAFETY.md).

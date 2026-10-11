@@ -23,8 +23,8 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 import schema_cols as S  # noqa: E402
-from .packed_score import PackedScorer
-from .dual_check import DualCheck
+from .packed_score import PackedScorer, import_shrink
+from .dual_check import DualCheck, fit_from_dataframe
 
 
 class UnmaskFilter:
@@ -42,31 +42,45 @@ class UnmaskFilter:
         elif not self.use_dualcheck:
             decision = "FILTERED"      # F3a: không dual-check -> pack cao là loại
         else:
-            core = [float(feat.get(c, 0) or 0) for c in S.CORE_FEATURE_COLS
-                    if c not in ("section_name_class",)]
+            cols = self.dual.core_cols or [c for c in S.CORE_FEATURE_COLS
+                                           if c != "section_name_class"]
+            core = [float(feat.get(c, 0) or 0) for c in cols]
             verdict = self.dual.check(core)
             decision = "FILTERED" if verdict == "similar" else "FLAGGED"
         return {"packed_score": round(score, 4), "decision": decision, "evidence": evidence}
 
 
 # ---- API cho module pip ----
-def filter_row(feat: dict, locked_config: dict | None = None) -> dict:
-    """Chạy F3 trên 1 dict feature (đã trích sẵn)."""
+def filter_row(feat: dict, locked_config: dict | None = None,
+               use_dualcheck: bool = True) -> dict:
+    """Chạy F3 trên 1 dict feature (đã trích sẵn).
+    use_dualcheck=True (mặc định) = F3 đầy đủ, cần config khoá có dual_check; thiếu thì báo lỗi
+    chứ KHÔNG âm thầm chạy như F3a. use_dualcheck=False = F3a (ablation)."""
     scorer = PackedScorer.load(locked_config) if locked_config else PackedScorer()
-    return UnmaskFilter(scorer, dual=None, use_dualcheck=False).decide(feat)
+    dual = DualCheck.from_config((locked_config or {}).get("dual_check")) if use_dualcheck else None
+    return UnmaskFilter(scorer, dual=dual, use_dualcheck=use_dualcheck).decide(feat)
 
 
-def filter_file(path: str, locked_config: dict | None = None) -> dict:
+def filter_file(path: str, locked_config: dict | None = None,
+                use_dualcheck: bool = True) -> dict:
     """Chạy F3 trên 1 file PE thật: trích feature tĩnh rồi quyết định. KHÔNG chạy file."""
     from extract_features import extract_one
     feat = extract_one(path)
-    out = filter_row(feat, locked_config)
+    if locked_config is None:
+        locked_config = _load_locked()
+    # extract_one chỉ trả num_api thô; mô hình học trên import_table_shrink ĐÃ chuẩn hoá
+    med = ((locked_config or {}).get("import_shrink") or {}).get("median_api")
+    feat["import_table_shrink"] = import_shrink(feat["num_api"], med)
+    out = filter_row(feat, locked_config, use_dualcheck=use_dualcheck)
     out["file"] = os.path.basename(path)
     return out
 
 
 def _load_locked() -> dict | None:
-    p = os.path.join(os.path.dirname(__file__), "..", "config", "thresholds.locked.json")
+    """Config khoá: biến môi trường UNMASK_CONFIG (dùng khi cài bằng pip) -> nếu không có thì
+    config/thresholds.locked.json cạnh mã nguồn (chạy trong repo). Chưa khoá -> None."""
+    p = os.environ.get("UNMASK_CONFIG") or os.path.join(
+        os.path.dirname(__file__), "..", "config", "thresholds.locked.json")
     if os.path.exists(p):
         cfg = json.load(open(p))
         return cfg if cfg.get("locked") else None
@@ -85,15 +99,15 @@ def main():
     locked = _load_locked()
     scorer = PackedScorer.load(locked) if locked else PackedScorer()
 
-    # dual-check: fit tham chiếu trên G0 (lõi AgentTesla đã biết) của tập train/val
+    # dual-check: ưu tiên tham chiếu + ngưỡng đã KHOÁ trong config; chưa có thì fit từ dataset
     dual = None
     if not args.no_dualcheck:
-        core_cols = [c for c in S.CORE_FEATURE_COLS if c != "section_name_class"]
-        ref = df[(df.group == "G0")][core_cols].to_numpy(dtype=float)
-        if len(ref) >= 3:
-            dual = DualCheck(ref)
-            val = df[(df.group == "G0")][core_cols].to_numpy(dtype=float)
-            dual.lock_threshold(val, p=95)
+        if locked and (locked.get("dual_check") or {}).get("reference"):
+            dual = DualCheck.from_config(locked["dual_check"])
+        else:
+            core_cols = [c for c in S.CORE_FEATURE_COLS if c != "section_name_class"]
+            dual, info = fit_from_dataframe(df, core_cols)
+            print(f"[F3] dual-check fit từ dataset (chưa có config khoá): {info}")
 
     f = UnmaskFilter(scorer, dual=dual, use_dualcheck=not args.no_dualcheck)
     results = [f.decide(r) for r in df.to_dict("records")]

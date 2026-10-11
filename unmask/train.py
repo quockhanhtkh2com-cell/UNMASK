@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 import schema_cols as S  # noqa: E402
 from packed_score import NUMERIC, SECTION_CLASS_WEIGHT  # type: ignore  # noqa: E402
+from dual_check import fit_from_dataframe  # type: ignore  # noqa: E402
 
 
 def _featurize(df):
@@ -28,9 +29,18 @@ def _featurize(df):
     return np.asarray(X, dtype=float)
 
 
+def _apply_scaler(X, mean, scale):
+    """Chuẩn hoá len(mean) cột đầu theo (x-mean)/scale; cột cuối (section_class) giữ nguyên."""
+    X = X.copy()
+    nnum = len(mean)
+    X[:, :nnum] = (X[:, :nnum] - mean) / scale
+    return X
+
+
 def train(dataset: str, out: str, seed: int = 0):
     import numpy as np, pandas as pd
     from sklearn.linear_model import LogisticRegression
+    from sklearn.preprocessing import StandardScaler
 
     df = pd.read_csv(dataset)
     # đề ôn: G0 (nhãn pack=0) + G1-UPX/P-seen (nhãn pack=1). Chỉ train/val.
@@ -42,6 +52,11 @@ def train(dataset: str, out: str, seed: int = 0):
                  "Chạy src/split_data.py trước.")
     y = ((prep.group == "G1")).astype(int).to_numpy()
     X = _featurize(prep)
+    # Chuẩn hoá các cột SỐ (overlay_size ~ hàng nghìn, cờ 0/1 ~ 1 -> không chuẩn hoá thì
+    # trọng số bị méo). Cột section_class đã nằm trong [0,1], giữ nguyên.
+    nnum = len(NUMERIC)
+    scaler = StandardScaler().fit(X[:, :nnum])
+    X = _apply_scaler(X, scaler.mean_, scaler.scale_)
 
     clf = LogisticRegression(max_iter=1000, random_state=seed)
     clf.fit(X, y)
@@ -52,7 +67,8 @@ def train(dataset: str, out: str, seed: int = 0):
     # quét ngưỡng trên validation -> chọn điểm vận hành (ở đây: Youden J trên đề ôn,
     # nhóm thay bằng mục tiêu FNR G3 < 5% khi có đủ G2/G3 trong val THẬT).
     val = prep[prep.split == "val"] if (prep.split == "val").any() else prep
-    probs = 1 / (1 + np.exp(-(_featurize(val) @ clf.coef_[0] + clf.intercept_[0])))
+    Xv = _apply_scaler(_featurize(val), scaler.mean_, scaler.scale_)
+    probs = 1 / (1 + np.exp(-(Xv @ clf.coef_[0] + clf.intercept_[0])))
     yv = (val.group == "G1").astype(int).to_numpy()
     best_thr, best_j = 0.5, -1
     for thr in np.linspace(0.1, 0.9, 33):
@@ -62,6 +78,13 @@ def train(dataset: str, out: str, seed: int = 0):
         if tpr - fpr > best_j:
             best_j, best_thr = tpr - fpr, float(thr)
 
+    g0_api = prep[prep.group == "G0"]["num_api"]
+    median_api = float(g0_api.median()) if len(g0_api) else None
+
+    # dual-check: tham chiếu G0 train, ngưỡng P95 trên G0 val (hoặc leave-one-out nếu chưa có val)
+    core_cols = [c for c in S.CORE_FEATURE_COLS if c != "section_name_class"]
+    dc, dc_info = fit_from_dataframe(df[df.split.isin(["train", "val"])], core_cols)
+
     cfg_path = out
     base = {}
     if os.path.exists(cfg_path):
@@ -70,9 +93,12 @@ def train(dataset: str, out: str, seed: int = 0):
         "locked": True,
         "locked_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "locked_by": "train.py",
+        "import_shrink": {"median_api": median_api, "source": "G0 train/val"},
         "packed_score": {
             "model": "logistic",
             "weights": weights,
+            "scaler": {"mean": {k: float(m) for k, m in zip(NUMERIC, scaler.mean_)},
+                       "scale": {k: float(s) for k, s in zip(NUMERIC, scaler.scale_)}},
             "threshold": round(best_thr, 4),
             "train_groups": ["G0", "G1"],
             "train_packer_seen": "upx",
@@ -80,7 +106,7 @@ def train(dataset: str, out: str, seed: int = 0):
     })
     base.setdefault("detector_D1", {"method": "mahalanobis", "percentile": 95,
                                     "fitted_on": ["G0", "val"], "threshold_value": None})
-    base.setdefault("dual_check", {"similarity_threshold": None})
+    base["dual_check"] = {**dc.to_config(), **dc_info}
     base["seeds"] = [0, 1, 2]
     json.dump(base, open(cfg_path, "w"), indent=2, ensure_ascii=False)
     print(f"[train] threshold={best_thr:.3f}  weights={ {k: round(v,2) for k,v in weights.items()} }")

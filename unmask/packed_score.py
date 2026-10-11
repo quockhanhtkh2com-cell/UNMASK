@@ -32,21 +32,41 @@ DEFAULT_WEIGHTS = {
 }
 
 
+def import_shrink(num_api, median_api) -> float:
+    """import_table_shrink = 1 - num_api / trung vị num_api của mẫu CHƯA PACK (khớp
+    add_import_shrink trong src/extract_features.py). Chưa biết trung vị -> 0,0 (không suy diễn)."""
+    if not median_api or median_api != median_api:  # None, 0 hoặc NaN
+        return 0.0
+    return round(max(0.0, 1 - float(num_api) / float(median_api)), 3)
+
+
 def _sigmoid(x: float) -> float:
     return 1 / (1 + math.exp(-max(-30, min(30, x))))
 
 
 class PackedScorer:
-    def __init__(self, weights: dict | None = None, threshold: float = 0.5):
+    def __init__(self, weights: dict | None = None, threshold: float = 0.5,
+                 scaler: dict | None = None):
+        """scaler: {"mean": {feature: m}, "scale": {feature: s}} - chuẩn hoá feature số
+        TRƯỚC khi nhân trọng số (train.py lưu cùng trọng số). None = giá trị thô (bộ trọng
+        số thủ công mặc định)."""
         self.w = dict(DEFAULT_WEIGHTS if weights is None else weights)
         self.threshold = threshold
         self.trained = weights is not None
+        self.scaler = scaler
+
+    def _value(self, feat: dict, k: str) -> float:
+        v = float(feat.get(k, 0) or 0)
+        if self.scaler:
+            s = self.scaler["scale"].get(k) or 1.0
+            v = (v - self.scaler["mean"].get(k, 0.0)) / s
+        return v
 
     def _linear(self, feat: dict) -> dict:
         """Trả đóng góp từng dấu hiệu (để vừa tính điểm vừa làm evidence)."""
         contrib = {}
         for k in NUMERIC:
-            contrib[k] = self.w.get(k, 0.0) * float(feat.get(k, 0) or 0)
+            contrib[k] = self.w.get(k, 0.0) * self._value(feat, k)
         sc = feat.get("section_name_class", "standard")
         contrib["section_class"] = self.w.get("section_class", 0.0) * SECTION_CLASS_WEIGHT.get(sc, 0.5)
         return contrib
@@ -66,4 +86,5 @@ class PackedScorer:
     @classmethod
     def load(cls, locked: dict) -> "PackedScorer":
         ps = locked.get("packed_score", {})
-        return cls(weights=ps.get("weights"), threshold=ps.get("threshold") or 0.5)
+        return cls(weights=ps.get("weights"), threshold=ps.get("threshold") or 0.5,
+                   scaler=ps.get("scaler"))

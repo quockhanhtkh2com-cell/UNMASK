@@ -6,12 +6,18 @@
   "packed_score": {
     "model": "logistic",
     "weights": null,
+    "scaler": null,
     "threshold": null,
     "train_groups": ["G0", "G1"],
     "train_packer_seen": "upx"
   },
+  "import_shrink": {
+    "median_api": null
+  },
   "dual_check": {
-    "similarity_threshold": null
+    "similarity_threshold": null,
+    "core_cols": null,
+    "reference": null
   },
   "detector_D1": {
     "method": "mahalanobis",
