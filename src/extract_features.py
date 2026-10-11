@@ -17,6 +17,7 @@ import argparse
 import math
 import os
 import sys
+import numpy as np
 
 sys.path.insert(0, os.path.dirname(__file__))
 import schema_cols as S  # noqa: E402
@@ -47,6 +48,46 @@ def shannon_entropy(data: bytes) -> float:
     return ent
 
 
+# Tập API "loader" tối thiểu: file chỉ import những hàm này gần như chắc chắn là stub tự giải nén.
+LOADER_APIS = frozenset({
+    "getprocaddress", "loadlibrarya", "loadlibraryw", "loadlibraryexa", "loadlibraryexw",
+    "virtualprotect", "virtualalloc", "exitprocess",
+})
+
+
+def only_loader_imports(api_names) -> int:
+    """1 nếu có ít nhất 1 API được import theo tên và TẤT CẢ đều nằm trong LOADER_APIS.
+    Import theo số thứ tự (không có tên) bị bỏ qua. Không có API nào -> 0."""
+    names = {str(n).lower() for n in api_names if n}
+    return 1 if names and names <= LOADER_APIS else 0
+
+
+def window_entropy_ratio(raw: bytes, win: int = 1024, thr: float = 7.0) -> float:
+    """Tỉ lệ cửa sổ `win` byte (không chồng lấp) có entropy Shannon > thr.
+    File ngắn hơn 1 cửa sổ -> 0.0."""
+    a = np.frombuffer(raw, dtype=np.uint8)
+    n = len(a) // win
+    if n == 0:
+        return 0.0
+    hi = 0
+    for i in range(n):
+        c = np.bincount(a[i * win:(i + 1) * win], minlength=256)
+        p = c[c > 0] / win
+        if -(p * np.log2(p)).sum() > thr:
+            hi += 1
+    return round(hi / n, 3)
+
+
+IMAGE_SCN_MEM_EXECUTE = 0x20000000
+IMAGE_SCN_MEM_WRITE = 0x80000000
+
+
+def ep_section_wx(characteristics: int) -> int:
+    """1 nếu section chứa entry point vừa Writable vừa Executable (W+X), khớp schema.md."""
+    both = IMAGE_SCN_MEM_EXECUTE | IMAGE_SCN_MEM_WRITE
+    return 1 if (characteristics & both) == both else 0
+
+
 def extract_one(path: str) -> dict:
     """Trả dict feature cho 1 file PE. import_table_shrink để tạm = số API thô (chuẩn hoá sau)."""
     import pefile
@@ -66,7 +107,7 @@ def extract_one(path: str) -> dict:
         raw_total += s.SizeOfRawData
         virt_total += max(1, s.Misc_VirtualSize)
         if s.contains_rva(ep):
-            ep_writable = 1 if (s.Characteristics & 0x80000000) else 0  # WRITE
+            ep_writable = ep_section_wx(s.Characteristics)  # W+X theo schema.md
 
     def classify(nm: str) -> str:
         if nm in KNOWN_PACKER_SECTIONS:
@@ -79,9 +120,12 @@ def extract_one(path: str) -> dict:
                  else "weird" if "weird" in classes else "standard")
 
     num_dll = num_api = 0
+    api_names = []
     if hasattr(pe, "DIRECTORY_ENTRY_IMPORT"):
         num_dll = len(pe.DIRECTORY_ENTRY_IMPORT)
         num_api = sum(len(e.imports) for e in pe.DIRECTORY_ENTRY_IMPORT)
+        api_names = [i.name.decode("latin-1", "ignore") for e in pe.DIRECTORY_ENTRY_IMPORT
+                     for i in e.imports if i.name]
 
     # overlay = phần dữ liệu sau section cuối
     last_end = max((s.PointerToRawData + s.SizeOfRawData) for s in pe.sections) if pe.sections else 0
@@ -103,7 +147,7 @@ def extract_one(path: str) -> dict:
         "entropy_file": round(shannon_entropy(raw), 3),
         "entropy_max_section": round(max(sec_entropies) if sec_entropies else 0, 3),
         "entropy_mean_section": round(sum(sec_entropies) / len(sec_entropies), 3) if sec_entropies else 0,
-        "high_entropy_byte_ratio": round(sum(e > 7.0 for e in sec_entropies) / len(sec_entropies), 3) if sec_entropies else 0,
+        "high_entropy_byte_ratio": window_entropy_ratio(raw),
         "num_sections": len(pe.sections),
         "section_name_class": sec_class,
         "raw_virtual_ratio": round(raw_total / virt_total, 3) if virt_total else 0,
@@ -111,7 +155,7 @@ def extract_one(path: str) -> dict:
         "num_dll": num_dll,
         "num_api": num_api,
         "import_table_shrink": float(num_api),  # tạm thời; finalize sẽ chuẩn hoá
-        "only_dynamic_loader_imports": 1 if num_api and num_api <= 10 else 0,
+        "only_dynamic_loader_imports": only_loader_imports(api_names),
         "file_size": file_size,
         "size_of_headers": pe.OPTIONAL_HEADER.SizeOfHeaders,
         "checksum_valid": checksum_valid,
@@ -142,42 +186,102 @@ def add_import_shrink(df):
     return df
 
 
+def load_origin_map(path: str) -> dict:
+    """Đọc CSV 2 cột `filename,origin_sha256` -> dict {filename: origin_sha256}."""
+    import csv
+    with open(path, newline="", encoding="utf-8") as f:
+        rd = csv.DictReader(f)
+        need = {"filename", "origin_sha256"}
+        if not rd.fieldnames or not need <= set(rd.fieldnames):
+            raise ValueError(f"{path}: cần cột {sorted(need)}, có {rd.fieldnames}")
+        return {r["filename"]: r["origin_sha256"].strip() for r in rd if r["origin_sha256"].strip()}
+
+
+def resolve_origin(group: str, sha: str, filename: str, origin_map: dict):
+    """G0/G2 (chưa pack): mẫu gốc tự trỏ về chính nó. G1/G3 (đã pack): lấy từ origin_map.
+    Trả None nếu G1/G3 mà không có trong map (người gọi phải ghi lỗi, không được để trống)."""
+    if group in ("G0", "G2"):
+        return sha
+    return origin_map.get(filename) or None
+
+
+def add_drift_truth(df):
+    """Thêm is_drift_truth theo GROUP_IS_DRIFT (G0,G1=0; G2,G3=1). Group lạ -> ValueError."""
+    bad = sorted(set(df["group"]) - set(S.GROUP_IS_DRIFT))
+    if bad:
+        raise ValueError(f"group không hợp lệ: {bad}")
+    df = df.copy()
+    df["is_drift_truth"] = df["group"].map(S.GROUP_IS_DRIFT).astype(int)
+    return df
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--in", dest="indir", help="thư mục chứa mẫu (trong VM)")
     ap.add_argument("--group"); ap.add_argument("--family")
     ap.add_argument("--variant", default="none"); ap.add_argument("--packer", default="none")
     ap.add_argument("--finalize", help="CSV thô -> chuẩn hoá import_shrink")
+    ap.add_argument("--origin-map", dest="origin_map", help="CSV filename,origin_sha256 (bắt buộc cho G1/G3)")
+    ap.add_argument("--errors", help="file ghi lỗi (mặc định: extract_errors.csv cạnh --out, ghi nối)")
     ap.add_argument("--out", required=True)
     args = ap.parse_args()
     import pandas as pd
 
     if args.finalize:
-        df = add_import_shrink(pd.read_csv(args.finalize))
+        df = add_drift_truth(add_import_shrink(pd.read_csv(args.finalize)))
         df.to_csv(args.out, index=False)
-        print(f"[finalize] chuẩn hoá import_shrink -> {args.out}")
+        print(f"[finalize] chuẩn hoá import_shrink + is_drift_truth -> {args.out}")
         return
 
+    import csv
     import hashlib
-    rows = []
+    if not args.indir or not args.group:
+        ap.error("cần --in và --group (hoặc dùng --finalize)")
+    for nm, val, ok in (("group", args.group, S.VALID_GROUPS),
+                        ("variant", args.variant, S.VALID_VARIANTS),
+                        ("packer", args.packer, S.VALID_PACKERS)):
+        if val not in ok:
+            ap.error(f"--{nm} '{val}' không hợp lệ, hợp lệ: {sorted(ok)}")
+    origin_map = load_origin_map(args.origin_map) if args.origin_map else {}
+    err_path = args.errors or os.path.join(os.path.dirname(os.path.abspath(args.out)), "extract_errors.csv")
+
+    rows, errors = [], []
     for fn in sorted(os.listdir(args.indir)):
         p = os.path.join(args.indir, fn)
         if not os.path.isfile(p):
             continue
         try:
             feat = extract_one(p)
-        except Exception as e:  # pack lỗi / không parse được -> ghi lại, không chết
+            with open(p, "rb") as fh:
+                sha = hashlib.sha256(fh.read()).hexdigest()
+        except Exception as e:  # không parse được -> ghi lại, không chết
+            errors.append({"file": fn, "group": args.group, "family": args.family, "reason": f"parse: {e}"})
             print(f"  [skip] {fn}: {e}")
             continue
+        origin = resolve_origin(args.group, sha, fn, origin_map)
+        if origin is None:
+            errors.append({"file": fn, "group": args.group, "family": args.family,
+                           "reason": "thiếu origin_sha256 trong --origin-map"})
+            print(f"  [skip] {fn}: thiếu origin_sha256")
+            continue
         feat.update({
-            "sha256": hashlib.sha256(open(p, "rb").read()).hexdigest(),
-            "family": args.family, "group": args.group,
-            "variant": args.variant, "packer": args.packer,
-            "origin_sha256": "",  # TODO(Khánh): map biến thể -> mẫu gốc khi pack
+            "sha256": sha, "family": args.family, "group": args.group,
+            "variant": args.variant, "packer": args.packer, "origin_sha256": origin,
         })
         rows.append(feat)
+
+    if errors:
+        new_file = not os.path.exists(err_path)
+        with open(err_path, "a", newline="", encoding="utf-8") as fh:
+            w = csv.DictWriter(fh, fieldnames=["file", "group", "family", "reason"])
+            if new_file:
+                w.writeheader()
+            w.writerows(errors)
+    if not rows:
+        print(f"[extract] 0 file hợp lệ, {len(errors)} lỗi -> {err_path} (không ghi {args.out})")
+        sys.exit(1)
     pd.DataFrame(rows).to_csv(args.out, index=False)
-    print(f"[extract] {len(rows)} file -> {args.out}")
+    print(f"[extract] {len(rows)} file, {len(errors)} lỗi -> {args.out}")
 
 
 if __name__ == "__main__":
