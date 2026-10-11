@@ -87,17 +87,19 @@ def pack_ratio(groups: list[str], variants: list[str]) -> float:
 
 
 def mcnemar(a_correct: list[bool], b_correct: list[bool]) -> dict:
-    """McNemar so 2 cổng trên CÙNG mẫu. Trả b, c và p-value (xấp xỉ chi-square 1 dof)."""
+    """McNemar trên cùng mẫu, dùng chi-square 1 dof có hiệu chỉnh liên tục."""
+    if len(a_correct) != len(b_correct):
+        raise ValueError("Hai danh sách phải có cùng số mẫu.")
+
     b = sum(1 for x, y in zip(a_correct, b_correct) if x and not y)
     c = sum(1 for x, y in zip(a_correct, b_correct) if not x and y)
+
     if b + c == 0:
         return {"b": b, "c": c, "stat": 0.0, "p_value": 1.0}
-    stat = (abs(b - c) - 1) ** 2 / (b + c)  # có hiệu chỉnh liên tục
-    try:
-        from scipy.stats import chi2
-        p = float(chi2.sf(stat, 1))
-    except ImportError:
-        p = math.exp(-stat / 2)  # xấp xỉ thô nếu thiếu scipy
+
+    stat = max(0, abs(b - c) - 1) ** 2 / (b + c)
+    p = math.erfc(math.sqrt(stat / 2))
+
     return {"b": b, "c": c, "stat": stat, "p_value": p}
 
 
