@@ -1,4 +1,4 @@
-# PHÂN CÔNG & HỢP ĐỒNG BÀN GIAO — Nhóm 4 · IAM302t
+# PHÂN CÔNG & HỢP ĐỒNG BÀN GIAO — Nhóm 1 · IAM302t
 Khoảng thời gian: 05/10 – 18/10/2026. Hạn chót: **18/10** pip + demo chạy được.
 
 ## Ai nhận gì / giao gì

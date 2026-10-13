@@ -1,5 +1,5 @@
 # UNMASK — Vỏ đổi hay lõi đổi?
-Định lượng drift do packing và giới hạn của bộ lọc dựa trên đặc trưng tĩnh · IAM302t · Nhóm 4
+Định lượng drift do packing và giới hạn của bộ lọc dựa trên đặc trưng tĩnh · IAM302t · Nhóm 1
 
 > ⚠️ **Công cụ chỉ ĐỌC feature tĩnh của file PE, KHÔNG chạy file.** Đọc `docs/SAFETY.md` trước.
 

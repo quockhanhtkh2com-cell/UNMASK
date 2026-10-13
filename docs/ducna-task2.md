@@ -1,7 +1,7 @@
 # Báo cáo Tiến độ Công việc - Task 2: Drift Detector D1 & Thử nghiệm
 
 **Thực hiện:** Đức  
-**Dự án:** UNMASK — Vỏ đổi hay lõi đổi? (IAM302t - Nhóm 4)  
+**Dự án:** UNMASK — Vỏ đổi hay lõi đổi? (IAM302t - Nhóm 1)  
 **Mốc thời hạn:** 13/10/2026 (Detector D1) & 16/10/2026 (Kết quả thí nghiệm E1–E6)  
 
 ---
