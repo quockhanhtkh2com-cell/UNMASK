@@ -109,3 +109,18 @@ cùng cấp với `unmask` để import không lỗi; không di chuyển file n�
 `unmask/` thì đổi sau.
 
 An toàn: mẫu malware chỉ nằm trong VM cô lập; không commit mẫu hay file packed (xem SAFETY.md).
+
+## Tiến độ phần F3 / đóng gói (Tuấn) — cập nhật 13/10/2026
+
+**Đã xong (trên nhánh `feat/tuan-gd2-f3`, chờ PR vào `dev`):**
+- `extract_features.py`, `packed_score.py`, `dual_check.py`, `filter.py` (F3/F3a), `train.py`: đã có trong `dev`, `pytest` 89 passed.
+- Sửa baseline `import_table_shrink` theo `is_dotnet` (khớp bản vá của Khánh); thêm `load_filter()`.
+- Runner `experiments/run_experiments.py` nạp config F3 đã khoá (`--f3-config`) thay vì scorer chưa train.
+- Gói pip: cài từ repo trong venv sạch, import và chạy `filter_file` trên file PE được.
+- `docs/vm_sop.md` (bản nháp) và `scripts/lock_f3.sh` (quy trình khoá ngưỡng).
+- Chạy thử F3/F3a trên dataset pilot v0.1: chỉ là **bản nháp**, chưa tinh chỉnh, không dùng trong báo cáo.
+
+**Còn lại, phụ thuộc người khác:**
+- Khoá ngưỡng F3 trên dataset v1.0: `scripts/lock_f3.sh <dataset_v1.0.csv>`, rồi commit `config/thresholds.locked.json` trước khi chạy E3–E5. Cần Khánh freeze v1.0 (và báo Đức vì file khoá dùng chung).
+- Điền các mục **[CHƯA KIỂM]** trong `docs/vm_sop.md` (ConfuserEx, MPRESS, ASPack, chuyển file giữa hai VM).
+- Kiểm `pip install` từ `dev` trong venv sạch sau khi mọi PR đã gộp (T6).
