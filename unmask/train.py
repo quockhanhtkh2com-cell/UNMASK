@@ -80,6 +80,13 @@ def train(dataset: str, out: str, seed: int = 0):
 
     g0_api = prep[prep.group == "G0"]["num_api"]
     median_api = float(g0_api.median()) if len(g0_api) else None
+    # baseline theo loai file (khop add_import_shrink cua Khanh): .NET so .NET, native so native
+    by_dotnet = {}
+    if "is_dotnet" in prep.columns:
+        for key, flag in (("0", 0), ("1", 1)):
+            s = prep[(prep.group == "G0") & (prep.is_dotnet == flag)]["num_api"]
+            if len(s):
+                by_dotnet[key] = float(s.median())
 
     # dual-check: tham chiếu G0 train, ngưỡng P95 trên G0 val (hoặc leave-one-out nếu chưa có val)
     core_cols = [c for c in S.CORE_FEATURE_COLS if c != "section_name_class"]
@@ -93,7 +100,9 @@ def train(dataset: str, out: str, seed: int = 0):
         "locked": True,
         "locked_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "locked_by": "train.py",
-        "import_shrink": {"median_api": median_api, "source": "G0 train/val"},
+        "import_shrink": {"median_api": median_api,
+                          "median_api_by_dotnet": by_dotnet or None,
+                          "source": "G0 train/val"},
         "packed_score": {
             "model": "logistic",
             "weights": weights,

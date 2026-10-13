@@ -12,7 +12,8 @@
     "train_packer_seen": "upx"
   },
   "import_shrink": {
-    "median_api": null
+    "median_api": null,
+    "median_api_by_dotnet": null
   },
   "dual_check": {
     "similarity_threshold": null,

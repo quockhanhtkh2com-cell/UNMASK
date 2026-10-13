@@ -70,3 +70,31 @@ def test_filter_row_full_f3_pass_filtered_flagged(tmp_path):
     assert filter_row(novel, cfg)["decision"] == "FLAGGED"
     benign = {"section_name_class": "standard", "entropy_max_section": 5.0, "entropy_file": 5.0}
     assert filter_row(benign, cfg)["decision"] == "PASS"
+
+
+def test_baseline_api_by_dotnet_and_backward_compat():
+    from unmask.packed_score import baseline_api
+    cfg = {"median_api": 50.0, "median_api_by_dotnet": {"0": 164.0, "1": 1.0}}
+    assert baseline_api(cfg, 0) == 164.0
+    assert baseline_api(cfg, 1) == 1.0
+    assert baseline_api({"median_api": 50.0}, 1) == 50.0   # config cu
+    assert baseline_api(None, 0) is None
+
+
+def test_filter_file_uses_native_baseline(monkeypatch):
+    fake = types.ModuleType("extract_features")
+    fake.extract_one = lambda p: {"num_api": 164, "is_dotnet": 0, "section_name_class": "standard"}
+    monkeypatch.setitem(sys.modules, "extract_features", fake)
+    from unmask.filter import filter_file
+    cfg = {"locked": True,
+           "packed_score": {"weights": {"import_table_shrink": 10.0, "bias": -5.0}, "threshold": 0.5},
+           "import_shrink": {"median_api": 1.0, "median_api_by_dotnet": {"0": 164.0, "1": 1.0}}}
+    out = filter_file("mau.exe", cfg, use_dualcheck=False)
+    assert out["decision"] == "PASS"   # native co 164 API = binh thuong, khong phai bi pack
+
+
+def test_load_filter_requires_locked():
+    import pytest
+    from unmask.filter import load_filter
+    with pytest.raises(ValueError):
+        load_filter({"locked": False})

@@ -23,7 +23,7 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 import schema_cols as S  # noqa: E402
-from .packed_score import PackedScorer, import_shrink
+from .packed_score import PackedScorer, import_shrink, baseline_api
 from .dual_check import DualCheck, fit_from_dataframe
 
 
@@ -61,6 +61,21 @@ def filter_row(feat: dict, locked_config: dict | None = None,
     return UnmaskFilter(scorer, dual=dual, use_dualcheck=use_dualcheck).decide(feat)
 
 
+def load_filter(locked_config=None, use_dualcheck: bool = True) -> UnmaskFilter:
+    """Dung UnmaskFilter tu config KHOA (dict | duong dan json | None = mac dinh UNMASK_CONFIG /
+    config/thresholds.locked.json). Chua khoa -> ValueError (khong am tham dung trong so tay)."""
+    if isinstance(locked_config, str):
+        locked_config = json.load(open(locked_config, encoding="utf-8"))
+    if locked_config is None:
+        locked_config = _load_locked()
+    if not locked_config or not locked_config.get("locked"):
+        raise ValueError("Chua co config khoa (locked=true). Chay unmask/train.py hoac "
+                         "dat UNMASK_CONFIG.")
+    scorer = PackedScorer.load(locked_config)
+    dual = DualCheck.from_config(locked_config.get("dual_check")) if use_dualcheck else None
+    return UnmaskFilter(scorer, dual=dual, use_dualcheck=use_dualcheck)
+
+
 def filter_file(path: str, locked_config: dict | None = None,
                 use_dualcheck: bool = True) -> dict:
     """Chạy F3 trên 1 file PE thật: trích feature tĩnh rồi quyết định. KHÔNG chạy file."""
@@ -69,7 +84,7 @@ def filter_file(path: str, locked_config: dict | None = None,
     if locked_config is None:
         locked_config = _load_locked()
     # extract_one chỉ trả num_api thô; mô hình học trên import_table_shrink ĐÃ chuẩn hoá
-    med = ((locked_config or {}).get("import_shrink") or {}).get("median_api")
+    med = baseline_api((locked_config or {}).get("import_shrink"), feat.get("is_dotnet"))
     feat["import_table_shrink"] = import_shrink(feat["num_api"], med)
     out = filter_row(feat, locked_config, use_dualcheck=use_dualcheck)
     out["file"] = os.path.basename(path)
