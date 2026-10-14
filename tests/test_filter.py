@@ -98,3 +98,13 @@ def test_load_filter_requires_locked():
     from unmask.filter import load_filter
     with pytest.raises(ValueError):
         load_filter({"locked": False})
+
+
+def test_train_threshold_is_plateau_middle_not_edge(tmp_path):
+    """Val tach hoan toan -> J bang nhau tren ca luoi; nguong phai o giua, khong phai mep 0.1."""
+    import json
+    import train as TR
+    out = tmp_path / "lock.json"
+    TR.train(os.path.join(HERE, "..", "mock", "mock_dataset.csv"), str(out))
+    thr = json.load(open(out))["packed_score"]["threshold"]
+    assert 0.1 <= thr <= 0.9
