@@ -1,0 +1,8 @@
+UNMASK dataset v1.0 — frozen 2026-10-13T14:38:01Z
+rows=438 | G0 53 / G1 67 (UPX17 + MPRESS50) / G2 165 live / G3 153
+split: train64 / val23 / test351 | 0 leakage (origin-based)
+source: MalwareBazaar (G0 AgentTesla; G2-live 8 ho) + UPX(P-seen)/MPRESS(P-unseen)
+RULE: KHONG sua sau moc nay. Thay doi => v1.1, khong ghi de v1.0.
+SHA256:
+ce2193359799dfed35fde1edbe385be8cb5ae9c3f1b13af56dcce5e26ddbab5d  dataset_v1.0.csv
+b1af5270f0f198f5f922b867bc06562f01fe030fd3ac3280fceac4b3945a5919  manifest_v1.0.csv
