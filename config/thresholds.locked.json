@@ -1,31 +1,255 @@
 {
   "_comment": "KHOÁ ĐỀ THI. Chạy unmask/train.py để điền weights/threshold THẬT rồi COMMIT file này TRƯỚC khi chạy E3-E5. Không sửa sau khi nhìn đề thi.",
-  "locked": false,
-  "locked_at": null,
-  "locked_by": null,
+  "locked": true,
+  "locked_at": "2026-10-14T16:04:07+00:00",
+  "locked_by": "train.py",
   "packed_score": {
     "model": "logistic",
-    "weights": null,
-    "scaler": null,
-    "threshold": null,
-    "train_groups": ["G0", "G1"],
+    "weights": {
+      "entropy_max_section": 0.49567283657420075,
+      "entropy_file": -0.06770356564410553,
+      "high_entropy_byte_ratio": 0.2908858628180939,
+      "raw_virtual_ratio": -0.8852509586574896,
+      "ep_section_writable": 1.6660245176041713,
+      "import_table_shrink": -0.45074787787423853,
+      "only_dynamic_loader_imports": 0.12887995192595744,
+      "overlay_size": 0.39734338734479757,
+      "section_class": 0.5456532742771267,
+      "bias": -2.6638737764001443
+    },
+    "scaler": {
+      "mean": {
+        "entropy_max_section": 7.232979999999999,
+        "entropy_file": 7.381219999999998,
+        "high_entropy_byte_ratio": 0.23316000000000003,
+        "raw_virtual_ratio": 0.6320000000000001,
+        "ep_section_writable": 0.24,
+        "import_table_shrink": 42.96,
+        "only_dynamic_loader_imports": 0.74,
+        "overlay_size": 203540.08
+      },
+      "scale": {
+        "entropy_max_section": 0.7149374934915639,
+        "entropy_file": 0.6121125808215349,
+        "high_entropy_byte_ratio": 0.19142981585949442,
+        "raw_virtual_ratio": 0.4118464276887684,
+        "ep_section_writable": 0.42708313008125254,
+        "import_table_shrink": 69.69073396083587,
+        "only_dynamic_loader_imports": 0.4386342439892263,
+        "overlay_size": 273170.73964448244
+      }
+    },
+    "threshold": 0.5,
+    "train_groups": [
+      "G0",
+      "G1"
+    ],
     "train_packer_seen": "upx"
   },
   "import_shrink": {
-    "median_api": null,
-    "median_api_by_dotnet": null
+    "median_api": 1.0,
+    "median_api_by_dotnet": {
+      "0": 164.5,
+      "1": 1.0
+    },
+    "source": "G0 train/val"
   },
   "dual_check": {
-    "similarity_threshold": null,
-    "core_cols": null,
-    "reference": null
+    "similarity_threshold": 3.225918117632048,
+    "core_cols": [
+      "file_size",
+      "size_of_headers",
+      "compile_timestamp",
+      "is_dotnet"
+    ],
+    "reference": [
+      [
+        473088.0,
+        512.0,
+        1343420503.0,
+        1.0
+      ],
+      [
+        525416.0,
+        1024.0,
+        1711817715.0,
+        0.0
+      ],
+      [
+        1114624.0,
+        512.0,
+        1786580536.0,
+        1.0
+      ],
+      [
+        1195008.0,
+        512.0,
+        1784854199.0,
+        1.0
+      ],
+      [
+        431104.0,
+        512.0,
+        2296663573.0,
+        1.0
+      ],
+      [
+        1207296.0,
+        512.0,
+        1785889358.0,
+        1.0
+      ],
+      [
+        1131520.0,
+        512.0,
+        1787558140.0,
+        1.0
+      ],
+      [
+        1230362.0,
+        1024.0,
+        1632606949.0,
+        0.0
+      ],
+      [
+        3450880.0,
+        1024.0,
+        1790011775.0,
+        0.0
+      ],
+      [
+        1128448.0,
+        512.0,
+        1747035623.0,
+        1.0
+      ],
+      [
+        902904.0,
+        1024.0,
+        1544912676.0,
+        0.0
+      ],
+      [
+        1060864.0,
+        512.0,
+        1786427308.0,
+        1.0
+      ],
+      [
+        481792.0,
+        512.0,
+        519716831.0,
+        1.0
+      ],
+      [
+        358656.0,
+        1024.0,
+        1576457433.0,
+        0.0
+      ],
+      [
+        1154560.0,
+        512.0,
+        1787553897.0,
+        1.0
+      ],
+      [
+        544176.0,
+        1024.0,
+        1627165075.0,
+        0.0
+      ],
+      [
+        721216.0,
+        1024.0,
+        1627165166.0,
+        0.0
+      ],
+      [
+        981504.0,
+        512.0,
+        1787208538.0,
+        1.0
+      ],
+      [
+        1135104.0,
+        512.0,
+        1785819593.0,
+        1.0
+      ],
+      [
+        879440.0,
+        1024.0,
+        1741475120.0,
+        0.0
+      ],
+      [
+        998400.0,
+        512.0,
+        1785922480.0,
+        1.0
+      ],
+      [
+        381776.0,
+        1024.0,
+        1481493027.0,
+        0.0
+      ],
+      [
+        1202688.0,
+        512.0,
+        1785996388.0,
+        1.0
+      ],
+      [
+        784384.0,
+        512.0,
+        1790815775.0,
+        1.0
+      ],
+      [
+        1067520.0,
+        512.0,
+        1786095652.0,
+        1.0
+      ],
+      [
+        1020416.0,
+        512.0,
+        1786347487.0,
+        1.0
+      ],
+      [
+        245760.0,
+        512.0,
+        1705605354.0,
+        1.0
+      ],
+      [
+        1050112.0,
+        512.0,
+        1785889288.0,
+        1.0
+      ]
+    ],
+    "threshold_source": "G0 val",
+    "n_ref": 28,
+    "n_val": 10,
+    "percentile": 95
   },
   "detector_D1": {
     "method": "mahalanobis",
     "percentile": 95,
-    "fitted_on": ["G0", "val"],
+    "fitted_on": [
+      "G0",
+      "val"
+    ],
     "threshold_value": null
   },
-  "seeds": [0, 1, 2],
+  "seeds": [
+    0,
+    1,
+    2
+  ],
   "test_set_sha256_manifest": null
 }
