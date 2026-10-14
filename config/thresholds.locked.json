@@ -244,12 +244,12 @@
       "G0",
       "val"
     ],
-    "threshold_value": null
+    "threshold_value": 4.74531
   },
   "seeds": [
     0,
     1,
     2
   ],
-  "test_set_sha256_manifest": null
+  "test_set_sha256_manifest": "b1af5270f0f198f5f922b867bc06562f01fe030fd3ac3280fceac4b3945a5919"
 }
