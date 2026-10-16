@@ -60,7 +60,13 @@ if not dataset_path.is_file():
     st.stop()
 
 try:
-    df = pd.read_csv(dataset_path)
+    df = pd.read_csv(
+        dataset_path,
+        dtype={
+            "sha256": str,
+            "origin_sha256": str,
+        },
+    )
 except Exception as exc:
     st.error(f"Không đọc được dataset: {exc}")
     st.stop()
