@@ -70,16 +70,28 @@ def train(dataset: str, out: str, seed: int = 0):
     Xv = _apply_scaler(_featurize(val), scaler.mean_, scaler.scale_)
     probs = 1 / (1 + np.exp(-(Xv @ clf.coef_[0] + clf.intercept_[0])))
     yv = (val.group == "G1").astype(int).to_numpy()
-    best_thr, best_j = 0.5, -1
-    for thr in np.linspace(0.1, 0.9, 33):
+    # Youden J; nhiều ngưỡng có J bằng nhau (val tách hoàn toàn) -> lấy GIỮA vùng phẳng
+    # (trung vị các ngưỡng đạt J tối đa), không lấy mép đầu 0.1 do thứ tự quét.
+    grid = np.linspace(0.1, 0.9, 33)
+    js = []
+    for thr in grid:
         pred = probs >= thr
         tpr = (pred & (yv == 1)).sum() / max(1, (yv == 1).sum())
         fpr = (pred & (yv == 0)).sum() / max(1, (yv == 0).sum())
-        if tpr - fpr > best_j:
-            best_j, best_thr = tpr - fpr, float(thr)
+        js.append(tpr - fpr)
+    js = np.asarray(js)
+    best_j = float(js.max())
+    best_thr = float(np.median(grid[js >= best_j - 1e-9]))
 
     g0_api = prep[prep.group == "G0"]["num_api"]
     median_api = float(g0_api.median()) if len(g0_api) else None
+    # baseline theo loai file (khop add_import_shrink cua Khanh): .NET so .NET, native so native
+    by_dotnet = {}
+    if "is_dotnet" in prep.columns:
+        for key, flag in (("0", 0), ("1", 1)):
+            s = prep[(prep.group == "G0") & (prep.is_dotnet == flag)]["num_api"]
+            if len(s):
+                by_dotnet[key] = float(s.median())
 
     # dual-check: tham chiếu G0 train, ngưỡng P95 trên G0 val (hoặc leave-one-out nếu chưa có val)
     core_cols = [c for c in S.CORE_FEATURE_COLS if c != "section_name_class"]
@@ -93,7 +105,9 @@ def train(dataset: str, out: str, seed: int = 0):
         "locked": True,
         "locked_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "locked_by": "train.py",
-        "import_shrink": {"median_api": median_api, "source": "G0 train/val"},
+        "import_shrink": {"median_api": median_api,
+                          "median_api_by_dotnet": by_dotnet or None,
+                          "source": "G0 train/val"},
         "packed_score": {
             "model": "logistic",
             "weights": weights,

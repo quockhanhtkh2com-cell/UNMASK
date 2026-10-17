@@ -40,6 +40,15 @@ def import_shrink(num_api, median_api) -> float:
     return round(max(0.0, 1 - float(num_api) / float(median_api)), 3)
 
 
+def baseline_api(import_shrink_cfg: dict | None, is_dotnet) -> float | None:
+    """Trung vi num_api cua mau CHUA PACK, theo loai file (native so native, .NET so .NET -
+    khop Khanh: add_import_shrink). Config cu chi co 'median_api' (1 so) -> dung lai."""
+    cfg = import_shrink_cfg or {}
+    by = cfg.get("median_api_by_dotnet") or {}
+    v = by.get("1" if is_dotnet else "0")
+    return v if v else cfg.get("median_api")
+
+
 def _sigmoid(x: float) -> float:
     return 1 / (1 + math.exp(-max(-30, min(30, x))))
 

@@ -1,7 +1,7 @@
 # Phân công & Quy trình làm việc — Tuần 5 & 6
 
 > **Dự án:** UNMASK — Vỏ đổi hay lõi đổi?  
-> **Môn học:** IAM302t · Nhóm 4  
+> **Môn học:** IAM302t · Nhóm 1  
 > **Thời gian:** 05/10 – 18/10/2026  
 > **Hạn chót:** **18/10/2026** (pip + demo chạy được)
 

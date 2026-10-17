@@ -14,13 +14,12 @@ import sys
 HERE = os.path.dirname(__file__)
 sys.path.insert(0, os.path.join(HERE, "..", "src"))
 sys.path.insert(0, os.path.join(HERE, ".."))
+sys.path.insert(0, os.path.join(HERE, "..", "unmask"))  # train.py import packed_score/dual_check phang
 import schema_cols as S          # noqa: E402
 import eval_metrics as M         # noqa: E402
 import f1_die, f2_rule           # noqa: E402
 from detector import DriftDetector  # noqa: E402
-from unmask.filter import UnmaskFilter  # noqa: E402
-from unmask.packed_score import PackedScorer  # noqa: E402
-from unmask.dual_check import DualCheck  # noqa: E402
+from unmask.filter import UnmaskFilter, load_filter  # noqa: E402
 
 GATES = ["F0", "F1", "F2", "F3"]
 FEATURE_NUM = [c for c in S.FEATURE_COLS if c != "section_name_class"]
@@ -41,7 +40,20 @@ def _subsample_to_ratio(df, pack_ratio: float, seed: int):
     return out.reset_index(drop=True)
 
 
-def _gate_decisions(gate: str, df, scorer, dual) -> list[str]:
+def _build_f3(dataset: str, f3_config: str | None, seed: int):
+    import tempfile
+    from unmask.filter import _load_locked
+    if f3_config or _load_locked():
+        return load_filter(f3_config)
+    print("[CẢNH BÁO] chưa có config F3 khoá -> train TẠM từ dataset (số liệu chỉ để chạy thử, "
+          "KHÔNG đưa vào báo cáo). Khoá thật: python unmask/train.py --dataset ... --out config/thresholds.locked.json")
+    from unmask.train import train
+    tmp = os.path.join(tempfile.mkdtemp(), "f3_tmp.json")
+    train(dataset, tmp, seed)
+    return load_filter(tmp)
+
+
+def _gate_decisions(gate: str, df, f3_filter) -> list[str]:
     if gate == "F0":
         return ["PASS"] * len(df)
     if gate == "F1":
@@ -49,12 +61,12 @@ def _gate_decisions(gate: str, df, scorer, dual) -> list[str]:
     if gate == "F2":
         return f2_rule.run(df)
     if gate == "F3":
-        f = UnmaskFilter(scorer, dual=dual, use_dualcheck=dual is not None)
-        return [f.decide(r)["decision"] for r in df.to_dict("records")]
+        return [f3_filter.decide(r)["decision"] for r in df.to_dict("records")]
     raise ValueError(gate)
 
 
-def run(exp: str, dataset: str, seed: int, pack_ratio: float, out_dir: str, detector_method: str = "mahalanobis"):
+def run(exp: str, dataset: str, seed: int, pack_ratio: float, out_dir: str, detector_method: str = "mahalanobis",
+        f3_config: str | None = None):
     import numpy as np, pandas as pd
     df = pd.read_csv(dataset)
 
@@ -71,20 +83,16 @@ def run(exp: str, dataset: str, seed: int, pack_ratio: float, out_dir: str, dete
     det = DriftDetector(method=detector_method, seed=seed).fit(g0_train)
     det.lock_threshold(g0_val, p=95)
 
-    # F3 scorer + dual-check
-    scorer = PackedScorer()  # TODO(Tuấn/Đức): load config/thresholds.locked.json khi đã khoá
-    core_cols = [c for c in S.CORE_FEATURE_COLS if c != "section_name_class"]
-    ref = df[df.group == "G0"][core_cols].to_numpy(float)
-    dual = None
-    if len(ref) >= 3:
-        dual = DualCheck(ref); dual.lock_threshold(ref, p=95)
+    # F3: nạp scorer + dual-check từ config ĐÃ KHOÁ (trọng số học trên train/val, KHÔNG thấy test).
+    # Chưa có config khoá -> train tạm ra thư mục tạm (chỉ để chạy thử, in cảnh báo).
+    f3_filter = _build_f3(dataset, f3_config, seed)
 
     sample = _subsample_to_ratio(df, pack_ratio, seed)
     ratio_real = M.pack_ratio(list(sample.group), list(sample.variant))
 
     rows = []
     for gate in GATES:
-        dec = _gate_decisions(gate, sample, scorer, dual)
+        dec = _gate_decisions(gate, sample, f3_filter)
         X = sample[FEATURE_NUM].to_numpy(float)
         alarms = det.predict(X)   # chuông chạy trên TẤT CẢ; FTR bỏ mẫu FILTERED
         rows.append({
@@ -117,9 +125,12 @@ def main():
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--pack-ratio", type=float, default=0.5)
     ap.add_argument("--detector", default="mahalanobis", choices=["mahalanobis", "isolation_forest"])
+    ap.add_argument("--f3-config", default=None,
+                    help="config F3 đã khoá (mặc định: config/thresholds.locked.json / UNMASK_CONFIG)")
     ap.add_argument("--out-dir", default=os.path.join(HERE, "..", "results"))
     args = ap.parse_args()
-    run(args.exp, args.dataset, args.seed, args.pack_ratio, args.out_dir, detector_method=args.detector)
+    run(args.exp, args.dataset, args.seed, args.pack_ratio, args.out_dir, detector_method=args.detector,
+        f3_config=args.f3_config)
 
 
 if __name__ == "__main__":
