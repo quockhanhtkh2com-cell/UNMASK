@@ -1,0 +1,32 @@
+UNMASK Dataset — Data License
+==============================
+
+The DATASET and derived data files in this repository — including
+dataset_v1.1.csv, manifest_v1.1.csv, DATASET_VERSION_v1.1.txt, and any
+raw-feature files (raw_features_*_imports.csv, raw_features_*_header.csv) —
+are licensed under the
+
+    Creative Commons Attribution 4.0 International License (CC BY 4.0)
+    https://creativecommons.org/licenses/by/4.0/
+
+You are free to:
+  - Share  — copy and redistribute the data in any medium or format
+  - Adapt  — remix, transform, and build upon the data for any purpose,
+             even commercially.
+
+Under the following terms:
+  - Attribution — You must give appropriate credit, provide a link to the
+    license, and indicate if changes were made.
+
+How to cite:
+  UNMASK Team (Nhóm 1), IAM302t — FPT University (2026). "UNMASK dataset v1.1:
+  a controlled 2x2 dataset for separating packing-induced drift from concept
+  drift in Windows PE malware." [dataset]. See DATASHEET_UNMASK_v1.1.md.
+
+Note on contents: this dataset contains ONLY static features (numeric) and
+SHA-256 hashes. It contains NO malware binaries. Raw malware samples are not
+redistributed; they can be re-obtained from MalwareBazaar (abuse.ch) using the
+SHA-256 values in the manifest, subject to that service's terms.
+
+The CODE (scripts, tools) is licensed separately under the MIT License — see
+LICENSE.
