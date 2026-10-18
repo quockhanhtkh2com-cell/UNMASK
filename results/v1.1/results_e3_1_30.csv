@@ -1,0 +1,5 @@
+exp,gate,seed,pack_ratio_set,pack_ratio_real,FTR,FNR_G2,FNR_G3,correct_filter_Pseen,correct_filter_Punseen,correct_filter_Plow,correct_filter_Pwild,flagged_rate
+e3,F0,1,0.3,0.384,0.0,0.0,0.0,0.0,0.0,,,0.0
+e3,F1,1,0.3,0.384,0.0,0.0,0.0,0.0,0.0,,,0.0
+e3,F2,1,0.3,0.384,0.0,0.09696969696969697,0.41304347826086957,1.0,0.24615384615384617,,,0.0
+e3,F3,1,0.3,0.384,0.0,0.012121212121212121,0.391304347826087,1.0,0.24615384615384617,,,0.004291845493562232
