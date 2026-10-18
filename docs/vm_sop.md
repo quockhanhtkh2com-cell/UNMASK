@@ -119,3 +119,35 @@ Kết quả v1.0: dataset 16/16 PASS; manifest FAIL vì thiếu cột die_result
 - Lệnh ASPack và ConfuserEx (Khánh bổ sung sau).
 - Nhóm chốt cách giảm rủi ro cho đường chuyển file qua thư mục chia sẻ (mục 4.1) so với SAFETY.md.
 - Mốc dataset chính thức (v1.1) và SHA-256 của nó.
+
+## Cập nhật theo dataset v1.1 (Khánh chốt 18/10/2026)
+
+### Lệnh pack (v1.1 chỉ dùng UPX và MPRESS)
+
+- UPX (Kali, native, nhóm P-seen):
+
+      upx --best --force -o <out>.exe <in>.exe
+
+- MPRESS v2.19 (Win2008, native và .NET, nhóm P-unseen). Pack tại chỗ:
+
+      mpress.exe "<file>.exe"
+
+  Nguồn: bản Wayback, SHA-256 bắt đầu 19ffee9, kết thúc 736c5.
+- ASPack: bỏ khỏi v1.1. ConfuserEx: để làm hướng phát triển (future work).
+
+### Chuyển mẫu giữa host và VM (theo SAFETY.md)
+
+- Không dùng thư mục chia sẻ ghi được.
+- Host sang VM: SFTP qua mạng host-only (WinSCP tới Kali chạy openssh), hoặc mount read-only / ISO.
+- VM luôn tắt mạng ngoài (chỉ host-only) khi có mẫu sống.
+- Từ VM ra host chỉ mang feature CSV, không mang binary.
+- Ghi chú trung thực: đợt dựng v1.1, khâu pack đã dùng thư mục chia sẻ ghi được.
+  Mẫu không bị thực thi và mạng đã tắt nên dữ liệu không bị ảnh hưởng.
+  Từ nay chỉ dùng SFTP hoặc read-only.
+
+### SHA-256 tập test v1.1 (404 mẫu)
+
+    50ee5320e0305fd1b47eb74a0fb60d72467fb904821a156d2891a814c5107a68
+
+Cách tính: lấy sha256 các dòng split == test, viết thường, sắp tăng dần,
+mỗi hash một dòng, có newline cuối, rồi băm toàn bộ chuỗi đó bằng SHA-256.

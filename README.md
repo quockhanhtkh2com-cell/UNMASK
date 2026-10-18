@@ -124,3 +124,19 @@ An toàn: mẫu malware chỉ nằm trong VM cô lập; không commit mẫu hay 
 - Khoá ngưỡng F3 trên dataset v1.0: `scripts/lock_f3.sh <dataset_v1.0.csv>`, rồi commit `config/thresholds.locked.json` trước khi chạy E3–E5. Cần Khánh freeze v1.0 (và báo Đức vì file khoá dùng chung).
 - Điền các mục **[CHƯA KIỂM]** trong `docs/vm_sop.md` (ConfuserEx, MPRESS, ASPack, chuyển file giữa hai VM).
 - Kiểm `pip install` từ `dev` trong venv sạch sau khi mọi PR đã gộp (T6).
+
+## Cài bằng pip và dùng bộ lọc F3
+
+    pip install .
+    export UNMASK_CONFIG=/duong/dan/toi/config/thresholds.locked.json
+    python -c "from unmask.filter import load_filter; f = load_filter()"
+
+Gói pip chỉ chứa code. File khóa (config/thresholds.locked.json) là kết quả của một lần
+thí nghiệm nên nằm trong repo, không đóng gói theo pip. Có thể truyền trực tiếp:
+load_filter(locked_config="duong/dan/file.json").
+
+## Trạng thái khóa F3
+
+F3 đã khóa trên dataset v1.1 (SHA-256 caed7ef9feff39621a4146e84f3b803bd87de94ae283addc6e0e580e02bdeb82),
+ngưỡng 0.475, train 140 / val 52. Không sửa ngưỡng sau khi xem kết quả test.
+Đổi dataset thì phải khóa lại bằng scripts/lock_f3.sh và báo cả nhóm.
