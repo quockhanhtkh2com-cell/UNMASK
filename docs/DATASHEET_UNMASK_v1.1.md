@@ -45,6 +45,7 @@
 - **Trích feature:** `src/extract_features.py` (pefile) — **chỉ parse tĩnh, KHÔNG thực thi mẫu**. Cùng 1 tool cho mọi nhóm.
 - **Packing:** UPX `--best` (P-seen, native — .NET không pack được); MPRESS v2.19 (P-unseen, cả native lẫn .NET). `origin_sha256` trỏ lõi gốc để chống leakage.
 - **Nhãn:** `group/variant/packer` gán lúc sinh; `is_drift_truth` theo `GROUP_IS_DRIFT`; `family` ground-truth từ nguồn.
+- **Độ tin cậy nhãn (label confidence):** nhãn `family` lấy từ trường `signature` của MalwareBazaar — **nguồn đơn, không phải đồng thuận đa engine** → coi là nhãn **"silver"** ở mức *họ malware*. Ngược lại, `group` và `is_drift_truth` do nhóm **TỰ kiểm soát khi sinh** (G0/G1 từ cùng một lõi sạch; G2/G3 từ họ khác) nên là nhãn **"gold"**. **Kết luận chính của nghiên cứu dựa trên `is_drift_truth` (gold)** — tách đổi-vỏ / đổi-lõi — **không phụ thuộc vào độ chính xác của tên họ**; tên họ chỉ dùng cho phân tích phụ (per-family).
 
 ## 5. Uses
 Huấn luyện & đánh giá cổng lọc F3 (UNMASK) so với F0/F1(DiE)/F2(entropy); đo FTR, FNR (tách G2/G3), tổng quát sang packer chưa gặp (train P-seen → test P-unseen). **Không** dùng để tạo malware hay né phát hiện.
@@ -58,6 +59,7 @@ Chỉ chia **feature số + hash** (`dataset_v1.1.csv`, `manifest_v1.1.csv`) —
 - **G0 chỉ 1 họ (AgentTesla)** → đóng khung **case study**; external validity giới hạn 1 họ (đa họ lõi = future work).
 - **MPRESS là NÉN, chưa phải OBFUSCATION** — ConfuserEx/.NET Reactor cho "đổi vỏ" .NET thực chiến = future work (cần VM Windows mới).
 - **Chưa có P-low / P-wild** → ô tương ứng trong thí nghiệm để trống (lưu ý: MPRESS-.NET giữ entropy thấp đã phần nào minh hoạ điểm mù F2).
+- **Nhãn họ là "silver" (nguồn đơn MB)** → phân tích per-family mang tính tham khảo; kết luận chính dựa trên `is_drift_truth` (gold).
 - **N vừa (596)** — controlled design, không thi đua quy mô kiểu BenchMFC; đóng góp là *phương pháp đo*.
 
 **Tập phụ trợ (ngoài 596):** MOTIF disarmed G2 (119 mẫu, 8 họ) giữ **riêng** làm **bộ kiểm nguồn khác (cross-source robustness)**.
