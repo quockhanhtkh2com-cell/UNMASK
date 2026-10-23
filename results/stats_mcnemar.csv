@@ -1,4 +1,4 @@
 comparison,b,c,stat,p_value,conclusion
 F3 vs F1 (DiE),86,23,35.2661,2.88e-09,F3 vượt trội có ý nghĩa thống kê (p < 0.001)
 F3 vs F2 (entropy),20,0,18.05,2.15e-05,F3 vượt trội có ý nghĩa thống kê (p < 0.001)
-F3 vs F3a (ablation),4,0,2.25,0.1336,Dual-check giảm bỏ sót drift thật (cứu 4 mẫu G3)
+F3 vs F3a (ablation),4,0,2.25,0.1336,"dual-check cho thấy xu hướng có lợi (cứu 4 mẫu G3) nhưng chưa đạt ý nghĩa thống kê (p=0.13, do ít mẫu)"

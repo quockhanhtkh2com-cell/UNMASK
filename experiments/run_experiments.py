@@ -94,7 +94,7 @@ def run(exp: str, dataset: str, seed: int, pack_ratio: float, out_dir: str, dete
     import numpy as np, pandas as pd
     df = _load_dataset(dataset, manifest)
 
-    # chuông D1 CHUNG: fit trên G0 (train), khoá P95 trên G0 (val).
+    # chuông D1 CHUNG: fit trên G0 (train), khoá trên G0 (val) hoặc nạp từ f3_config nếu có.
     g0_train = df[(df.group == "G0") & (df.split == "train")][FEATURE_NUM].to_numpy(float)
     g0_val = df[(df.group == "G0") & (df.split == "val")][FEATURE_NUM].to_numpy(float)
 
@@ -104,8 +104,21 @@ def run(exp: str, dataset: str, seed: int, pack_ratio: float, out_dir: str, dete
     if len(g0_val) == 0:
         g0_val = g0_train
 
-    det = DriftDetector(method=detector_method, seed=seed).fit(g0_train)
-    det.lock_threshold(g0_val, p=95)
+    det = DriftDetector(method=detector_method, seed=seed, standardize=True).fit(g0_train)
+
+    # Nạp ngưỡng D1 từ config khoá nếu có, hoặc tính P80 trên G0 val
+    cfg_p = f3_config or os.path.join(HERE, "..", "config", "thresholds.locked.json")
+    if os.path.exists(cfg_p):
+        import json
+        cdata = json.load(open(cfg_p, encoding="utf-8"))
+        d1_cfg = cdata.get("detector_D1", {})
+        if d1_cfg.get("threshold_value"):
+            det.threshold = float(d1_cfg["threshold_value"])
+        else:
+            p_val = d1_cfg.get("percentile", 80)
+            det.lock_threshold(g0_val, p=p_val)
+    else:
+        det.lock_threshold(g0_val, p=80)
 
     # F3: nạp scorer + dual-check từ config ĐÃ KHOÁ. F3a: ablation không dual-check.
     f3_filter = _build_f3(dataset, f3_config, seed, use_dualcheck=True)
@@ -130,6 +143,8 @@ def run(exp: str, dataset: str, seed: int, pack_ratio: float, out_dir: str, dete
             "FTR": M.ftr(dec, list(sample.group), alarms).value,
             "FNR_G2": M.fnr(dec, list(sample.group), "G2").value,
             "FNR_G3": M.fnr(dec, list(sample.group), "G3").value,
+            "FNR_e2e_G2": M.fnr_end2end(dec, alarms, list(sample.group), "G2").value,
+            "FNR_e2e_G3": M.fnr_end2end(dec, alarms, list(sample.group), "G3").value,
             "correct_filter_Pseen": M.correct_filter_rate(dec, list(sample.group), list(sample.variant), "P-seen").value,
             "correct_filter_Punseen": M.correct_filter_rate(dec, list(sample.group), list(sample.variant), "P-unseen").value,
             "correct_filter_Plow": M.correct_filter_rate(dec, list(sample.group), list(sample.variant), "P-low").value,
@@ -142,9 +157,6 @@ def run(exp: str, dataset: str, seed: int, pack_ratio: float, out_dir: str, dete
     pr_str = f"0_{int(round(pack_ratio*100)):02d}"
     fn = os.path.join(out_dir, f"results_{exp}_{seed}_{pr_str}.csv")
     out_df.to_csv(fn, index=False)
-    # Lưu song song tên ngắn 30, 50, 70 để tương thích ngược
-    fn_alt = os.path.join(out_dir, f"results_{exp}_{seed}_{int(round(pack_ratio*100))}.csv")
-    out_df.to_csv(fn_alt, index=False)
     print(out_df.to_string(index=False))
     print(f"[{exp}] -> {fn}")
     return fn
