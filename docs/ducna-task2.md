@@ -60,6 +60,18 @@ File dữ liệu thử nghiệm: `mock/mock_dataset.csv`
   * Đã khởi tạo file theo dõi tiến độ `ducna-task2.md`.
   * Hoàn thành **Task 2.1**: Cập nhật `experiments/run_experiments.py` tự động fit D1 trên G0 `train`, lock P95 trên G0 `val`, thêm cờ `--detector` hỗ trợ lựa chọn Mahalanobis hoặc Isolation Forest. Đã chạy thử nghiệm thành công cả 2 phương pháp.
   * Hoàn thành **Task 2.2**: Tạo bộ unit test `tests/test_detector.py` bao phủ toàn bộ API `DriftDetector` (Assertion lỗi method rác, kiểm tra ném RuntimeError khi gọi predict trước khi lock threshold, test fit/score/lock_threshold/predict cho cả 2 thuật toán Mahalanobis & Isolation Forest). Đã chạy `pytest` vượt qua toàn bộ 11/11 tests.
-  * Hoàn thành **Task 2.3**: Chạy lưới thí nghiệm e2 trên mock data qua 3 seed (0, 1, 2) x 3 tỉ lệ pack (0.3, 0.5, 0.7). Tất cả 9 file `results_e2_*.csv` đã được tự động sinh ra trong thư mục `results/`.
-  * Hoàn thành **Task 2.4**: Thực thi `build_main_table.py` tổng hợp 9 file kết quả thí nghiệm ra `results/bang_chinh.csv` và `results/bang_chinh.md` (trung bình FTR@50%, FNR G2/G3, correct_filter, flagged_rate cho 4 cổng F0-F3).
-  *  **Task 2.5**: Đã chạy bộ test tự động `pytest -q`, 100% test pass (11/11 tests).
+* **22/10/2026:**
+  * Tiếp nhận yêu cầu mới từ nhóm: kiểm tra và sửa lỗi đánh giá gộp cả 596 dòng (chưa lọc test).
+  * Sửa `run_experiments.py` chỉ đánh giá trên 404 mẫu test (`df.split == "test"`), ngăn chặn rò rỉ tập train/val.
+  * Tự động nối cột `die_result` từ manifest để phục hồi hoạt động đúng của cổng F1 (DiE).
+  * Chạy lại toàn bộ thí nghiệm E1–E6 qua 3 seed × 3 pack ratio, bổ sung cổng ablation F3a.
+  * Tích hợp kiểm định McNemar ghép cặp trên 404 mẫu test và khoảng tin cậy Wilson 95% CI theo `SPEC_ketqua_chi_so.md`.
+* **23/10/2026:**
+  * Tiếp nhận phản hồi review từ Leader (file `Fix E1-E6.docx`).
+  * Nâng cấp `DriftDetector` với chuẩn hóa đặc trưng (z-score) giải quyết lỗi suy biến ma trận hiệp phương sai.
+  * Khóa ngưỡng D1 ở phân vị P80 trên `G0 val` (ngưỡng 6.9111), giúp kịch bản E0b chính thức PASS với độ nhạy trên G2 đạt 68.5% (> 50%).
+  * Viết script độc lập `experiments/check_e0b.py` kiểm tra độ nhạy chuông D1 tự động.
+  * Bổ sung metric `fnr_end2end` (bộ lọc loại hoặc chuông không kêu) và thêm unit test cho `eval_metrics.py` (91/91 tests pass).
+  * Chuẩn hóa kết luận kiểm định ablation F3 vs F3a ($p = 0.1336$, chưa đạt ý nghĩa thống kê do ít mẫu).
+  * Dọn dẹp toàn bộ file mock và duplicate, xuất lại bảng kết quả hoàn chỉnh `bang_chinh.md`, `bang_chinh.csv`, `stats_mcnemar.csv` và báo cáo `docs/BAO_CAO_FIX_E1_E6.md`.
+  * Đẩy toàn bộ thay đổi lên nhánh `origin/feat/ducna`. Hoàn thành 100% nhiệm vụ Task 2.
