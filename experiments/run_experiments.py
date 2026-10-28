@@ -21,8 +21,30 @@ import f1_die, f2_rule           # noqa: E402
 from detector import DriftDetector  # noqa: E402
 from unmask.filter import UnmaskFilter, load_filter  # noqa: E402
 
-GATES = ["F0", "F1", "F2", "F3"]
+GATES = ["F0", "F1", "F2", "F3", "F3a"]
 FEATURE_NUM = [c for c in S.FEATURE_COLS if c != "section_name_class"]
+
+
+def _load_dataset(dataset_path: str, manifest_path: str | None = None):
+    import pandas as pd
+    df = pd.read_csv(dataset_path)
+    if "die_result" not in df.columns:
+        mf_path = manifest_path
+        if not mf_path:
+            candidates = [
+                dataset_path.replace("dataset", "manifest"),
+                os.path.join(os.path.dirname(dataset_path), "manifest_v1.1.csv"),
+                "manifest_v1.1.csv",
+            ]
+            for c in candidates:
+                if os.path.exists(c):
+                    mf_path = c
+                    break
+        if mf_path and os.path.exists(mf_path):
+            mf = pd.read_csv(mf_path)
+            if "die_result" in mf.columns and "sha256" in mf.columns:
+                df = df.merge(mf[["sha256", "die_result"]], on="sha256", how="left")
+    return df
 
 
 def _subsample_to_ratio(df, pack_ratio: float, seed: int):
@@ -40,20 +62,20 @@ def _subsample_to_ratio(df, pack_ratio: float, seed: int):
     return out.reset_index(drop=True)
 
 
-def _build_f3(dataset: str, f3_config: str | None, seed: int):
+def _build_f3(dataset: str, f3_config: str | None, seed: int, use_dualcheck: bool = True):
     import tempfile
     from unmask.filter import _load_locked
     if f3_config or _load_locked():
-        return load_filter(f3_config)
+        return load_filter(f3_config, use_dualcheck=use_dualcheck)
     print("[CẢNH BÁO] chưa có config F3 khoá -> train TẠM từ dataset (số liệu chỉ để chạy thử, "
           "KHÔNG đưa vào báo cáo). Khoá thật: python unmask/train.py --dataset ... --out config/thresholds.locked.json")
     from unmask.train import train
     tmp = os.path.join(tempfile.mkdtemp(), "f3_tmp.json")
     train(dataset, tmp, seed)
-    return load_filter(tmp)
+    return load_filter(tmp, use_dualcheck=use_dualcheck)
 
 
-def _gate_decisions(gate: str, df, f3_filter) -> list[str]:
+def _gate_decisions(gate: str, df, f3_filter, f3a_filter) -> list[str]:
     if gate == "F0":
         return ["PASS"] * len(df)
     if gate == "F1":
@@ -62,15 +84,17 @@ def _gate_decisions(gate: str, df, f3_filter) -> list[str]:
         return f2_rule.run(df)
     if gate == "F3":
         return [f3_filter.decide(r)["decision"] for r in df.to_dict("records")]
+    if gate == "F3a":
+        return [f3a_filter.decide(r)["decision"] for r in df.to_dict("records")]
     raise ValueError(gate)
 
 
 def run(exp: str, dataset: str, seed: int, pack_ratio: float, out_dir: str, detector_method: str = "mahalanobis",
-        f3_config: str | None = None):
+        f3_config: str | None = None, manifest: str | None = None):
     import numpy as np, pandas as pd
-    df = pd.read_csv(dataset)
+    df = _load_dataset(dataset, manifest)
 
-    # chuông D1 CHUNG: fit trên G0 (train), khoá P95 trên G0 (val).
+    # chuông D1 CHUNG: fit trên G0 (train), khoá trên G0 (val) hoặc nạp từ f3_config nếu có.
     g0_train = df[(df.group == "G0") & (df.split == "train")][FEATURE_NUM].to_numpy(float)
     g0_val = df[(df.group == "G0") & (df.split == "val")][FEATURE_NUM].to_numpy(float)
 
@@ -80,19 +104,37 @@ def run(exp: str, dataset: str, seed: int, pack_ratio: float, out_dir: str, dete
     if len(g0_val) == 0:
         g0_val = g0_train
 
-    det = DriftDetector(method=detector_method, seed=seed).fit(g0_train)
-    det.lock_threshold(g0_val, p=95)
+    det = DriftDetector(method=detector_method, seed=seed, standardize=True).fit(g0_train)
 
-    # F3: nạp scorer + dual-check từ config ĐÃ KHOÁ (trọng số học trên train/val, KHÔNG thấy test).
-    # Chưa có config khoá -> train tạm ra thư mục tạm (chỉ để chạy thử, in cảnh báo).
-    f3_filter = _build_f3(dataset, f3_config, seed)
+    # Nạp ngưỡng D1 từ config khoá nếu có, hoặc tính P80 trên G0 val
+    cfg_p = f3_config or os.path.join(HERE, "..", "config", "thresholds.locked.json")
+    if os.path.exists(cfg_p):
+        import json
+        cdata = json.load(open(cfg_p, encoding="utf-8"))
+        d1_cfg = cdata.get("detector_D1", {})
+        if d1_cfg.get("threshold_value"):
+            det.threshold = float(d1_cfg["threshold_value"])
+        else:
+            p_val = d1_cfg.get("percentile", 80)
+            det.lock_threshold(g0_val, p=p_val)
+    else:
+        det.lock_threshold(g0_val, p=80)
 
-    sample = _subsample_to_ratio(df, pack_ratio, seed)
+    # F3: nạp scorer + dual-check từ config ĐÃ KHOÁ. F3a: ablation không dual-check.
+    f3_filter = _build_f3(dataset, f3_config, seed, use_dualcheck=True)
+    f3a_filter = _build_f3(dataset, f3_config, seed, use_dualcheck=False)
+
+    # Đánh giá CHỈ trên tập test (404 mẫu test chống rò rỉ)
+    df_test = df[df.split == "test"].reset_index(drop=True)
+    if len(df_test) == 0:
+        df_test = df
+
+    sample = _subsample_to_ratio(df_test, pack_ratio, seed)
     ratio_real = M.pack_ratio(list(sample.group), list(sample.variant))
 
     rows = []
     for gate in GATES:
-        dec = _gate_decisions(gate, sample, f3_filter)
+        dec = _gate_decisions(gate, sample, f3_filter, f3a_filter)
         X = sample[FEATURE_NUM].to_numpy(float)
         alarms = det.predict(X)   # chuông chạy trên TẤT CẢ; FTR bỏ mẫu FILTERED
         rows.append({
@@ -101,6 +143,8 @@ def run(exp: str, dataset: str, seed: int, pack_ratio: float, out_dir: str, dete
             "FTR": M.ftr(dec, list(sample.group), alarms).value,
             "FNR_G2": M.fnr(dec, list(sample.group), "G2").value,
             "FNR_G3": M.fnr(dec, list(sample.group), "G3").value,
+            "FNR_e2e_G2": M.fnr_end2end(dec, alarms, list(sample.group), "G2").value,
+            "FNR_e2e_G3": M.fnr_end2end(dec, alarms, list(sample.group), "G3").value,
             "correct_filter_Pseen": M.correct_filter_rate(dec, list(sample.group), list(sample.variant), "P-seen").value,
             "correct_filter_Punseen": M.correct_filter_rate(dec, list(sample.group), list(sample.variant), "P-unseen").value,
             "correct_filter_Plow": M.correct_filter_rate(dec, list(sample.group), list(sample.variant), "P-low").value,
@@ -110,7 +154,8 @@ def run(exp: str, dataset: str, seed: int, pack_ratio: float, out_dir: str, dete
 
     out_df = pd.DataFrame(rows)
     os.makedirs(out_dir, exist_ok=True)
-    fn = os.path.join(out_dir, f"results_{exp}_{seed}_{int(pack_ratio*100)}.csv")
+    pr_str = f"0_{int(round(pack_ratio*100)):02d}"
+    fn = os.path.join(out_dir, f"results_{exp}_{seed}_{pr_str}.csv")
     out_df.to_csv(fn, index=False)
     print(out_df.to_string(index=False))
     print(f"[{exp}] -> {fn}")
@@ -120,17 +165,30 @@ def run(exp: str, dataset: str, seed: int, pack_ratio: float, out_dir: str, dete
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--exp", default="e2",
-                    help="e0b|e1|e2|e3|e4|e5|e6 (khung chung; nội dung chi tiết TODO Đức)")
+                    help="e0b|e1|e2|e3|e4|e5|e6")
     ap.add_argument("--dataset", required=True)
+    ap.add_argument("--manifest", default=None)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--pack-ratio", type=float, default=0.5)
     ap.add_argument("--detector", default="mahalanobis", choices=["mahalanobis", "isolation_forest"])
     ap.add_argument("--f3-config", default=None,
                     help="config F3 đã khoá (mặc định: config/thresholds.locked.json / UNMASK_CONFIG)")
     ap.add_argument("--out-dir", default=os.path.join(HERE, "..", "results"))
+    ap.add_argument("--all", action="store_true",
+                    help="Chạy toàn bộ lưới (seed: 0,1,2 x pack-ratio: 0.3, 0.5, 0.7)")
+    ap.add_argument("--all-exps", action="store_true",
+                    help="Chạy toàn bộ thí nghiệm e1..e6")
     args = ap.parse_args()
-    run(args.exp, args.dataset, args.seed, args.pack_ratio, args.out_dir, detector_method=args.detector,
-        f3_config=args.f3_config)
+
+    exps = ["e1", "e2", "e3", "e4", "e5", "e6"] if args.all_exps else [args.exp]
+    seeds = [0, 1, 2] if (args.all or args.all_exps) else [args.seed]
+    ratios = [0.3, 0.5, 0.7] if (args.all or args.all_exps) else [args.pack_ratio]
+
+    for e in exps:
+        for s in seeds:
+            for r in ratios:
+                run(e, args.dataset, s, r, args.out_dir, detector_method=args.detector,
+                    f3_config=args.f3_config, manifest=args.manifest)
 
 
 if __name__ == "__main__":

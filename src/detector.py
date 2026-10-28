@@ -15,10 +15,13 @@ import numpy as np
 
 
 class DriftDetector:
-    def __init__(self, method: str = "mahalanobis", seed: int = 0):
+    def __init__(self, method: str = "mahalanobis", seed: int = 0, standardize: bool = True):
         assert method in ("mahalanobis", "isolation_forest")
         self.method = method
         self.seed = seed
+        self.standardize = standardize
+        self._scaler_mean = None
+        self._scaler_std = None
         self._mean = None
         self._inv_cov = None
         self._model = None
@@ -26,6 +29,12 @@ class DriftDetector:
 
     def fit(self, X: np.ndarray):
         X = np.asarray(X, dtype=float)
+        if self.standardize:
+            self._scaler_mean = X.mean(axis=0)
+            self._scaler_std = X.std(axis=0)
+            self._scaler_std[self._scaler_std == 0] = 1.0
+            X = (X - self._scaler_mean) / self._scaler_std
+
         if self.method == "mahalanobis":
             self._mean = X.mean(axis=0)
             cov = np.cov(X, rowvar=False)
@@ -40,6 +49,9 @@ class DriftDetector:
     def score(self, X: np.ndarray) -> np.ndarray:
         """Điểm bất thường, CÀNG CAO càng lạ."""
         X = np.asarray(X, dtype=float)
+        if self.standardize and self._scaler_mean is not None:
+            X = (X - self._scaler_mean) / self._scaler_std
+
         if self.method == "mahalanobis":
             d = X - self._mean
             return np.sqrt(np.einsum("ij,jk,ik->i", d, self._inv_cov, d))

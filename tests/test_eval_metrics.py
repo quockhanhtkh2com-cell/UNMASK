@@ -21,6 +21,18 @@ def test_fnr_separates_g2_g3():
     assert M.fnr(dec, grp, "G3").value == 0.5
 
 
+def test_fnr_end2end():
+    # G2 sample 1: FILTERED (missed by gate) -> missed
+    # G2 sample 2: PASS, alarm=True -> detected
+    # G2 sample 3: PASS, alarm=False (missed by alarm) -> missed
+    # G2 sample 4: FLAGGED, alarm=True -> detected
+    dec = ["FILTERED", "PASS", "PASS", "FLAGGED"]
+    alarm = [True, True, False, True]
+    grp = ["G2", "G2", "G2", "G2"]
+    r = M.fnr_end2end(dec, alarm, grp, "G2")
+    assert r.num == 2 and r.den == 4 and r.value == 0.5
+
+
 def test_wilson_bounds():
     lo, hi = M.Rate(5, 10).wilson()
     assert 0 <= lo < 0.5 < hi <= 1

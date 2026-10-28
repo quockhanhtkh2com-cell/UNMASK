@@ -443,17 +443,18 @@
   },
   "detector_D1": {
     "method": "mahalanobis",
-    "percentile": 95,
+    "standardize": true,
+    "percentile": 80,
     "fitted_on": [
       "G0",
       "val"
     ],
-    "threshold_value": null
+    "threshold_value": 6.9111
   },
   "seeds": [
     0,
     1,
     2
   ],
-  "test_set_sha256_manifest": null
+  "test_set_sha256_manifest": "50ee5320e0305fd1b47eb74a0fb60d72467fb904821a156d2891a814c5107a68"
 }

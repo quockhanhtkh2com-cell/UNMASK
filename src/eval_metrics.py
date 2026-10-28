@@ -65,6 +65,15 @@ def fnr(decisions: list[str], groups: list[str], target_group: str) -> Rate:
     return Rate(missed, total)
 
 
+def fnr_end2end(decisions: list[str], drift_alarm: list[bool], groups: list[str], target_group: str) -> Rate:
+    """FNR toàn trình (bộ lọc + chuông): mẫu drift thật (G2 hoặc G3) bị FILTERED bởi cổng
+    HOẶC không được chuông báo drift (drift_alarm=False)."""
+    total = sum(1 for g in groups if g == target_group)
+    missed = sum(1 for dec, alarm, g in zip(decisions, drift_alarm, groups)
+                 if g == target_group and (dec == "FILTERED" or not alarm))
+    return Rate(missed, total)
+
+
 def correct_filter_rate(decisions: list[str], groups: list[str], variants: list[str],
                         variant: str | None = None) -> Rate:
     """Tỉ lệ lọc đúng: G1 bị FILTERED / tổng G1 (lọc theo biến thể nếu truyền variant)."""
