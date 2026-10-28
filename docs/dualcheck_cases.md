@@ -19,10 +19,10 @@ Dữ liệu: split `test` (n=404). Ngưỡng dual-check khóa: `13.2057`; đặc
 
 | group | packer | n_score>=thr | similar(FILTERED) | novel(FLAGGED) | dist_median |
 |:---:|:---:|:---:|:---:|:---:|:---:|
-| G1 | mpress | 14.000 | 14.000 | 0.000 | 2.203 |
-| G1 | upx | 15.000 | 15.000 | 0.000 | 0.069 |
-| G2 | none | 2.000 | 2.000 | 0.000 | 7.410 |
-| G3 | mpress | 71.000 | 67.000 | 4.000 | 2.233 |
+| G1 | mpress | 14 | 14 | 0 | 2.203 |
+| G1 | upx | 15 | 15 | 0 | 0.069 |
+| G2 | none | 2 | 2 | 0 | 7.410 |
+| G3 | mpress | 71 | 67 | 4 | 2.233 |
 
 ## 3. Giá trị đặc trưng lõi của các ca cứu
 

@@ -168,6 +168,8 @@ def main():
         "novel(FLAGGED)": int((d["dist"] > dual.threshold).sum()),
         "dist_median": float(d["dist"].median()),
     }))
+    cnt = [c for c in by.columns if c not in ("group", "packer", "dist_median")]
+    by[cnt] = by[cnt].astype(int)  # đếm số ca nên in số nguyên
     by.to_csv(os.path.join(a.results, "dualcheck_by_group.csv"), index=False)
 
     resc = df[(df["f3a"] == "FILTERED") & (df["f3"] != "FILTERED")].copy()
