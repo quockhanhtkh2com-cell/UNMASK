@@ -3,6 +3,7 @@ from pathlib import Path
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "src"))
 
 import numpy as np
@@ -11,6 +12,12 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+
+from experiments.plot_style import (
+    apply_style, save_figure, GATE_COLOR,
+)
+
+apply_style()
 
 import eval_metrics as M
 import f1_die
@@ -21,7 +28,7 @@ def draw(rows, metric, labels, output, title):
     fig, ax = plt.subplots(figsize=(10, 5))
     x = np.arange(len(labels))
     width = 0.18
-    colors = ["#64748b", "#2563eb", "#e5a000", "#22a06b"]
+
 
     for index, gate in enumerate(["F0", "F1", "F2", "F3"]):
         subset = rows[
@@ -36,7 +43,7 @@ def draw(rows, metric, labels, output, title):
 
         ax.bar(
             positions[valid], values[valid], width,
-            label=gate, color=colors[index],
+            label=gate, color=GATE_COLOR[gate],
             yerr=np.maximum(
                 0,
                 np.array([
@@ -78,7 +85,7 @@ def draw(rows, metric, labels, output, title):
         ha="center", fontsize=9,
     )
     fig.tight_layout(rect=(0, 0.06, 1, 1))
-    fig.savefig(output, dpi=200)
+    save_figure(fig, output)
     plt.close(fig)
     print(f"Đã lưu: {output}")
 
