@@ -25,25 +25,30 @@ GATES = ["F0", "F1", "F1+", "F2", "F3", "F3a"]
 FEATURE_NUM = [c for c in S.FEATURE_COLS if c != "section_name_class"]
 
 
-def _load_dataset(dataset_path: str, manifest_path: str | None = None):
+def _load_dataset(dataset_path: str, manifest_path: str | None = None, die_real_path: str | None = None):
     import pandas as pd
     df = pd.read_csv(dataset_path)
     if "die_result_real" not in df.columns:
-        die_real_path = manifest_path
         if not die_real_path:
             candidates = [
-                dataset_path.replace("dataset", "die_real_v1.1"),
+                os.path.join("results", "die_real_v1.1.csv"),
+                os.path.join(HERE, "..", "results", "die_real_v1.1.csv"),
                 os.path.join(os.path.dirname(dataset_path), "die_real_v1.1.csv"),
                 "die_real_v1.1.csv",
+                dataset_path.replace("dataset", "die_real_v1.1"),
             ]
             for c in candidates:
-                if os.path.exists(c):
+                if c and os.path.exists(c):
                     die_real_path = c
                     break
-        if die_real_path and os.path.exists(die_real_path):
-            die_real = pd.read_csv(die_real_path)
-            if "die_result_real" in die_real.columns and "sha256" in die_real.columns:
-                df = df.merge(die_real[["sha256", "die_result_real"]], on="sha256", how="left")
+        if not die_real_path or not os.path.exists(die_real_path):
+            raise FileNotFoundError(
+                f"Không tìm thấy file kết quả DiE thật (die_real_v1.1.csv). Đã tìm tại: {[c for c in candidates if c]}"
+            )
+        die_real = pd.read_csv(die_real_path)
+        if "die_result_real" not in die_real.columns or "sha256" not in die_real.columns:
+            raise ValueError(f"File {die_real_path} thiếu cột 'sha256' hoặc 'die_result_real'.")
+        df = df.merge(die_real[["sha256", "die_result_real"]], on="sha256", how="left")
     return df
 
 
@@ -103,9 +108,9 @@ def _gate_decisions(gate: str, df, f3_filter, f3a_filter) -> list[str]:
 
 
 def run(exp: str, dataset: str, seed: int, pack_ratio: float, out_dir: str, detector_method: str = "mahalanobis",
-        f3_config: str | None = None, manifest: str | None = None):
+        f3_config: str | None = None, manifest: str | None = None, die_real: str | None = None):
     import numpy as np, pandas as pd
-    df = _load_dataset(dataset, manifest)
+    df = _load_dataset(dataset, manifest_path=manifest, die_real_path=die_real)
 
     # chuông D1 CHUNG: fit trên G0 (train), khoá trên G0 (val) hoặc nạp từ f3_config nếu có.
     g0_train = df[(df.group == "G0") & (df.split == "train")][FEATURE_NUM].to_numpy(float)
@@ -188,6 +193,8 @@ def main():
                     help="e0b|e1|e2|e3|e4|e5|e6")
     ap.add_argument("--dataset", required=True)
     ap.add_argument("--manifest", default=None)
+    ap.add_argument("--die-real", default=None,
+                    help="Đường dẫn file kết quả DiE thật (mặc định tìm trong results/die_real_v1.1.csv)")
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--pack-ratio", type=float, default=0.5)
     ap.add_argument("--detector", default="mahalanobis", choices=["mahalanobis", "isolation_forest"])
@@ -208,7 +215,7 @@ def main():
         for s in seeds:
             for r in ratios:
                 run(e, args.dataset, s, r, args.out_dir, detector_method=args.detector,
-                    f3_config=args.f3_config, manifest=args.manifest)
+                    f3_config=args.f3_config, manifest=args.manifest, die_real=args.die_real)
 
 
 if __name__ == "__main__":

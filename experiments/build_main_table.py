@@ -26,14 +26,26 @@ def _compute_mcnemar_table(dataset_path: str, f3_config_path: str, out_csv: str)
     import pandas as pd
     df = pd.read_csv(dataset_path)
     if "die_result_real" not in df.columns:
-        # Try to load from die_real_v1.1.csv (đọc từ dev hoặc local)
-        die_real_path = os.path.join(os.path.dirname(dataset_path), "die_real_v1.1.csv")
-        if not os.path.exists(die_real_path):
-            die_real_path = "die_real_v1.1.csv"
-        if os.path.exists(die_real_path):
-            die_real = pd.read_csv(die_real_path)
-            if "die_result_real" in die_real.columns and "sha256" in die_real.columns:
-                df = df.merge(die_real[["sha256", "die_result_real"]], on="sha256", how="left")
+        # Try to load from die_real_v1.1.csv (đọc từ results/, root, hoặc cạnh dataset)
+        candidates = [
+            os.path.join(os.path.dirname(dataset_path), "die_real_v1.1.csv"),
+            "die_real_v1.1.csv",
+            os.path.join("results", "die_real_v1.1.csv"),
+            os.path.join(HERE, "..", "results", "die_real_v1.1.csv"),
+        ]
+        die_real_path = None
+        for c in candidates:
+            if c and os.path.exists(c):
+                die_real_path = c
+                break
+        if not die_real_path:
+            raise FileNotFoundError(
+                f"Không tìm thấy die_real_v1.1.csv. Đã tìm tại: {[c for c in candidates if c]}"
+            )
+        die_real = pd.read_csv(die_real_path)
+        if "die_result_real" not in die_real.columns or "sha256" not in die_real.columns:
+            raise ValueError(f"File {die_real_path} thiếu cột 'sha256' hoặc 'die_result_real'.")
+        df = df.merge(die_real[["sha256", "die_result_real"]], on="sha256", how="left")
 
     df_test = df[df.split == "test"].reset_index(drop=True)
     if len(df_test) == 0:

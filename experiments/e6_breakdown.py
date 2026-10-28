@@ -29,13 +29,25 @@ def e6_breakdown(dataset_path: str, f3_config_path: str, out_packer: str, out_fa
 
     df = pd.read_csv(dataset_path)
     if "die_result_real" not in df.columns:
-        die_real_path = os.path.join(os.path.dirname(dataset_path), "die_real_v1.1.csv")
-        if not os.path.exists(die_real_path):
-            die_real_path = "die_real_v1.1.csv"
-        if os.path.exists(die_real_path):
-            die_real = pd.read_csv(die_real_path)
-            if "die_result_real" in die_real.columns and "sha256" in die_real.columns:
-                df = df.merge(die_real[["sha256", "die_result_real"]], on="sha256", how="left")
+        candidates = [
+            os.path.join("results", "die_real_v1.1.csv"),
+            os.path.join(HERE, "..", "results", "die_real_v1.1.csv"),
+            os.path.join(os.path.dirname(dataset_path), "die_real_v1.1.csv"),
+            "die_real_v1.1.csv",
+        ]
+        die_real_path = None
+        for c in candidates:
+            if c and os.path.exists(c):
+                die_real_path = c
+                break
+        if not die_real_path:
+            raise FileNotFoundError(
+                f"Không tìm thấy die_real_v1.1.csv. Đã tìm tại: {[c for c in candidates if c]}"
+            )
+        die_real = pd.read_csv(die_real_path)
+        if "die_result_real" not in die_real.columns or "sha256" not in die_real.columns:
+            raise ValueError(f"File {die_real_path} thiếu cột 'sha256' hoặc 'die_result_real'.")
+        df = df.merge(die_real[["sha256", "die_result_real"]], on="sha256", how="left")
 
     FEATURE_NUM = [c for c in S.FEATURE_COLS if c != "section_name_class"]
 
