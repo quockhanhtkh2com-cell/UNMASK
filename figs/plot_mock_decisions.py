@@ -1,12 +1,20 @@
 """Vẽ quyết định F3 từ CSV xuất bởi demo mock — [Trúc]."""
 from pathlib import Path
 import argparse
+import sys
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
 
 import pandas as pd
 import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+
+from experiments.plot_style import apply_style, save_figure
+
+apply_style()
 
 
 def main():
@@ -17,7 +25,7 @@ def main():
     parser.add_argument("--out-dir", default="figs")
     args = parser.parse_args()
 
-    df = pd.read_csv(args.input)
+    df = pd.read_csv(args.input, dtype={"sha256": str})
     required = {"sha256", "group", "decision"}
     missing = required - set(df.columns)
     if missing:
@@ -70,7 +78,7 @@ def main():
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     output = out_dir / "fig_mock_f3_decisions_by_group.png"
-    fig.savefig(output, dpi=200)
+    save_figure(fig, output)
     plt.close(fig)
 
     print(counts.to_string())

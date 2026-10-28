@@ -9,7 +9,7 @@ Quét: Khánh (Kali). Rà số, bỏ mã màu, đưa lên repo: Tuấn.
 - SHA-256 của gói DiE portable đã dùng: **[Khánh bổ sung: chạy `sha256sum` trên file tải về]**. (Gói `.deb` Ubuntu 26.04 mà Tuấn cài thử có SHA-256 `ef4474d93e00f3644ea680518c43b3a65fe3fb739f6d7eac5d13b82235f339b5`, nhưng đó không phải bản dùng để quét.)
 - Lệnh chạy cho từng mẫu: `diec.sh <đường_dẫn_mẫu>` (quét mặc định, chỉ phân tích tĩnh, không thực thi mẫu). Timeout 30 giây mỗi mẫu.
 - Mạng khi quét: **[Khánh xác nhận: đã tắt hay chưa]**
-- Script: `experiments/run_die_real.py` (bản của Khánh; Tuấn chỉ thêm đoạn bỏ mã màu ANSI khỏi output). Mẫu được khớp với manifest bằng cách **tự tính SHA-256 từng file** (tên file ở G1/G3 không phải SHA-256).
+- Script: `scripts/run_die_real.py` (bản của Khánh; Tuấn chỉ thêm đoạn bỏ mã màu ANSI khỏi output). Mẫu được khớp với manifest bằng cách **tự tính SHA-256 từng file** (tên file ở G1/G3 không phải SHA-256).
 - Không sửa `manifest_v1.1.csv` và `dataset_v1.1.csv`.
 
 ## Cách quy đổi output của DiE sang nhãn `die_result_real`

@@ -22,6 +22,6 @@
 | 7 | Viết và soạn báo cáo kỹ thuật `BAO_CAO_FIX_E1_E6.md` và cập nhật tiến độ `ducna-task2.md` | `docs/BAO_CAO_FIX_E1_E6.md`, `docs/ducna-task2.md` | Đức đọc lại toàn bộ báo cáo, đối chiếu từng con số với CSV; commit `861439f` |
 
 **Ghi chú liêm chính:**
-- Ngưỡng D1 (`6.9111`, phân vị P80) được chọn **chỉ trên G0 val** — không nhìn tập test hay G2 để tránh data leakage. Xác nhận tại `config/thresholds.locked.json → detector_D1.fitted_on = ["G0", "val"]`.
+- **D1 threshold change (P95 → P80):** Kế hoạch gốc dùng P95 nhưng E0b test không đạt ngưỡng G2 (chỉ 12.7%, cần ≥50%) → thay đổi sang P80 sau khi audit. Ngưỡng P80 (`6.9111`) được chọn **chỉ trên G0 val** (không nhìn test hay G2) để tránh data leakage. Xác nhận: `config/thresholds.locked.json → detector_D1.fitted_on = ["G0", "val"]` và D1 sensitivity analysis (Đ6) chứng minh P80 là tối ưu trên val (68.5% catch G2, 5.6% false alarm G0).
 - AI không tự chạy dataset thật; mọi số liệu thí nghiệm xuất phát từ lần chạy Đức tự thực hiện.
-- AI không thay đổi ngưỡng khóa (F3=0.475, D1=6.9111) sau khi đã commit.
+- AI không thay đổi ngưỡng khóa (F3=0.475, D1=6.9111) sau khi đã commit (commit `d4c438f` là Đ6 analysis để giải thích/validate lựa chọn P80).

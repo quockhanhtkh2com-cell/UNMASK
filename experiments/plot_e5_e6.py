@@ -1,199 +1,377 @@
-"""Vẽ đường cong E5 (FTR–FNR đánh đổi theo cổng) và bảng E6 per-packer.
+"""Vẽ kết quả E5/E6 hiện có bằng khuôn chung UNMASK.
 
-Usage:
-    python experiments/plot_e5_e6.py --results results/ --out figs/
+E5 hiện tại: so sánh điểm hoạt động, không phải đường quét ngưỡng.
+E6 hiện tại: so sánh theo tỉ lệ pack, không phải phân tích theo packer.
+
+Chạy:
+    python -m experiments.plot_e5_e6 --results results --out figs
+
+Không thay đổi dataset, config, ngưỡng hoặc CSV đầu vào.
 """
 from __future__ import annotations
-import argparse, glob, os
-import pandas as pd
+
+import argparse
+from pathlib import Path
+
 import matplotlib
 matplotlib.use("Agg")
+
 import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
 import numpy as np
+import pandas as pd
 
-GATE_ORDER  = ["F0", "F1", "F2", "F3a", "F3"]
-GATE_LABELS = {"F0": "F0 (baseline)", "F1": "F1 (DiE)", "F2": "F2 (entropy rule)",
-               "F3a": "F3a (ablation)", "F3": "F3 (proposed)"}
-GATE_COLOR  = {"F0": "#9e9e9e", "F1": "#ef5350", "F2": "#ff9800",
-               "F3a": "#42a5f5", "F3": "#26c6da"}
-GATE_MARKER = {"F0": "s", "F1": "^", "F2": "D", "F3a": "o", "F3": "*"}
-GATE_SIZE   = {"F0": 80,  "F1": 80,  "F2": 80,  "F3a": 80,  "F3": 140}
+try:
+    from .plot_style import (
+        apply_style,
+        save_figure,
+        GATE_ORDER,
+        GATE_LABELS,
+        GATE_COLOR,
+        GATE_MARKER,
+    )
+except ImportError:
+    from plot_style import (
+        apply_style,
+        save_figure,
+        GATE_ORDER,
+        GATE_LABELS,
+        GATE_COLOR,
+        GATE_MARKER,
+    )
+
+apply_style()
 
 
-def load_exp(results_dir: str, exp: str) -> pd.DataFrame:
-    files = sorted(glob.glob(os.path.join(results_dir, f"results_{exp}_*.csv")))
+def load_exp(results_dir: Path, exp: str) -> pd.DataFrame:
+    files = sorted(results_dir.glob(f"results_{exp}_*.csv"))
     if not files:
-        raise FileNotFoundError(f"Không tìm thấy CSV cho {exp} trong {results_dir}")
-    return pd.concat([pd.read_csv(f) for f in files], ignore_index=True)
+        raise FileNotFoundError(
+            f"Không tìm thấy results_{exp}_*.csv trong {results_dir}"
+        )
+
+    frames = []
+    required = [
+        "gate",
+        "seed",
+        "pack_ratio_set",
+        "pack_ratio_real",
+        "FTR",
+        "FNR_G2",
+        "FNR_G3",
+    ]
+    if exp == "e6":
+        required.append("correct_filter_Punseen")
+
+    for path in files:
+        frame = pd.read_csv(path)
+        missing = [col for col in required if col not in frame.columns]
+        if missing:
+            raise ValueError(f"{path.name}: thiếu cột {missing}")
+        if frame.empty:
+            raise ValueError(f"{path.name}: không có dữ liệu")
+        if "exp" in frame.columns and not frame["exp"].eq(exp).all():
+            raise ValueError(f"{path.name}: có dòng không thuộc {exp}")
+
+        frame["source_file"] = path.name
+        frames.append(frame)
+
+    df = pd.concat(frames, ignore_index=True)
+
+    if not df["gate"].isin(GATE_ORDER).all():
+        raise ValueError(f"{exp}: có gate không hợp lệ")
+
+    numeric_cols = [col for col in required if col != "gate"]
+    for col in numeric_cols:
+        df[col] = pd.to_numeric(df[col], errors="coerce")
+        if not np.isfinite(df[col].to_numpy(dtype=float)).all():
+            raise ValueError(
+                f"{exp}/{col}: có giá trị thiếu hoặc không hữu hạn; "
+                "cần làm rõ số liệu, không thay bằng 0"
+            )
+
+    for col in numeric_cols:
+        if col != "seed" and not df[col].between(0, 1).all():
+            raise ValueError(f"{exp}/{col}: phải nằm trong khoảng 0–1")
+
+    if not df["seed"].mod(1).eq(0).all():
+        raise ValueError(f"{exp}: seed phải là số nguyên")
+
+    keys = ["gate", "seed", "pack_ratio_set"]
+    if df.duplicated(keys).any():
+        raise ValueError(
+            f"{exp}: trùng gate/seed/tỉ lệ đặt. "
+            "Script này chỉ đọc điểm hoạt động, chưa đọc sweep ngưỡng."
+        )
+
+    reference_seeds = None
+    for key, block in df.groupby(["pack_ratio_set", "seed"]):
+        if set(block["gate"]) != set(GATE_ORDER):
+            raise ValueError(f"{exp}/{key}: chưa đủ 5 gate")
+        if block["pack_ratio_real"].nunique() != 1:
+            raise ValueError(
+                f"{exp}/{key}: tỉ lệ pack thực tế khác nhau giữa các gate"
+            )
+
+    for ratio, block in df.groupby("pack_ratio_set"):
+        seeds = set(block["seed"])
+        if reference_seeds is None:
+            reference_seeds = seeds
+        elif seeds != reference_seeds:
+            raise ValueError(
+                f"{exp}/{ratio}: tập seed không khớp các tỉ lệ khác"
+            )
+
+    return df
 
 
-def plot_e5_curve(results_dir: str, out_dir: str):
-    """Đường cong đánh đổi FTR–FNR_G3 theo cổng F0–F3 (mean ± std qua seed × pack_ratio)."""
-    df = load_exp(results_dir, "e5")
-    os.makedirs(out_dir, exist_ok=True)
-
-    # ─── Figure 1: FTR vs FNR_G3 (scatter các điểm hoạt động) ───
-    fig, ax = plt.subplots(figsize=(7, 5))
-    fig.patch.set_facecolor("#0d1117")
-    ax.set_facecolor("#161b22")
-
-    for gate in GATE_ORDER:
-        gd = df[df.gate == gate]
-        xs = gd["FTR"].values
-        ys = gd["FNR_G3"].values
-        mx, my = xs.mean(), ys.mean()
-        sx, sy = xs.std(ddof=0), ys.std(ddof=0)
-        # vẽ error bars
-        ax.errorbar(mx, my, xerr=sx, yerr=sy,
-                    fmt=GATE_MARKER[gate], color=GATE_COLOR[gate],
-                    markersize=10 if gate == "F3" else 7,
-                    linewidth=1.5, capsize=4, alpha=0.9,
-                    label=GATE_LABELS[gate])
-        ax.annotate(gate, (mx, my),
-                    textcoords="offset points", xytext=(8, 4),
-                    fontsize=8, color=GATE_COLOR[gate], fontweight="bold")
-
-    # Đường thẳng ideal FTR=0 (không có false alarm)
-    ax.axvline(0, color="#ffffff22", linestyle="--", linewidth=0.8)
-
-    ax.set_xlabel("FTR (False-Trigger Rate)", color="#c9d1d9", fontsize=11)
-    ax.set_ylabel("FNR G3 (Miss Rate — packer mới)", color="#c9d1d9", fontsize=11)
-    ax.set_title("E5 — Đánh đổi FTR / FNR_G3 theo cổng\n(mean ± std qua 3 seed × 3 pack-ratio)", 
-                 color="#f0f6fc", fontsize=12, fontweight="bold")
-    ax.tick_params(colors="#8b949e")
-    for spine in ax.spines.values():
-        spine.set_edgecolor("#30363d")
-    ax.legend(facecolor="#161b22", edgecolor="#30363d", labelcolor="#c9d1d9",
-              fontsize=8.5, loc="upper right")
-    ax.grid(color="#21262d", linestyle="--", linewidth=0.6)
-
-    # annotate locked operating point
-    f3_d = df[df.gate == "F3"]
-    f3_ftr = f3_d["FTR"].mean()
-    f3_fnr = f3_d["FNR_G3"].mean()
-    ax.annotate("← Điểm hoạt động\n   khoá (F3=0.475)",
-                xy=(f3_ftr, f3_fnr), xytext=(f3_ftr + 0.025, f3_fnr + 0.07),
-                fontsize=7.5, color="#26c6da",
-                arrowprops=dict(arrowstyle="->", color="#26c6da", lw=1.2))
-
-    plt.tight_layout()
-    out1 = os.path.join(out_dir, "e5_ftr_fnr_curve.png")
-    plt.savefig(out1, dpi=150, bbox_inches="tight", facecolor="#0d1117")
-    plt.close()
-    print(f"[E5] đường cong FTR–FNR_G3 → {out1}")
-
-    # ─── Figure 2: FTR vs FNR_G2 ───
-    fig2, ax2 = plt.subplots(figsize=(7, 5))
-    fig2.patch.set_facecolor("#0d1117")
-    ax2.set_facecolor("#161b22")
-    for gate in GATE_ORDER:
-        gd = df[df.gate == gate]
-        mx = gd["FTR"].mean(); my = gd["FNR_G2"].mean()
-        sx = gd["FTR"].std(ddof=0); sy = gd["FNR_G2"].std(ddof=0)
-        ax2.errorbar(mx, my, xerr=sx, yerr=sy,
-                     fmt=GATE_MARKER[gate], color=GATE_COLOR[gate],
-                     markersize=10 if gate == "F3" else 7,
-                     linewidth=1.5, capsize=4, alpha=0.9,
-                     label=GATE_LABELS[gate])
-        ax2.annotate(gate, (mx, my), textcoords="offset points", xytext=(8, 4),
-                     fontsize=8, color=GATE_COLOR[gate], fontweight="bold")
-    ax2.set_xlabel("FTR (False-Trigger Rate)", color="#c9d1d9", fontsize=11)
-    ax2.set_ylabel("FNR G2 (Miss Rate — packing đã học)", color="#c9d1d9", fontsize=11)
-    ax2.set_title("E5 — FTR / FNR_G2 theo cổng", color="#f0f6fc", fontsize=12, fontweight="bold")
-    ax2.tick_params(colors="#8b949e")
-    for spine in ax2.spines.values():
-        spine.set_edgecolor("#30363d")
-    ax2.legend(facecolor="#161b22", edgecolor="#30363d", labelcolor="#c9d1d9", fontsize=8.5)
-    ax2.grid(color="#21262d", linestyle="--", linewidth=0.6)
-    plt.tight_layout()
-    out2 = os.path.join(out_dir, "e5_ftr_fnr_g2_curve.png")
-    plt.savefig(out2, dpi=150, bbox_inches="tight", facecolor="#0d1117")
-    plt.close()
-    print(f"[E5] đường cong FTR–FNR_G2 → {out2}")
-
-    return out1, out2
+def actual_ratio_text(block: pd.DataFrame) -> str:
+    low = float(block["pack_ratio_real"].min())
+    high = float(block["pack_ratio_real"].max())
+    if np.isclose(low, high):
+        return f"{low:.1%}"
+    return f"{low:.1%}–{high:.1%}"
 
 
-def plot_e6_per_packer(results_dir: str, out_dir: str):
-    """E6 bonus: FTR và correct_Punseen theo tỉ lệ pack (per-packer proxy)."""
-    df = load_exp(results_dir, "e6")
-    os.makedirs(out_dir, exist_ok=True)
+def gate_summary(block: pd.DataFrame) -> pd.DataFrame:
+    return (
+        block.groupby("gate")
+        .agg(
+            FTR_mean=("FTR", "mean"),
+            FTR_std=("FTR", lambda x: x.std(ddof=0)),
+            FNR_G2_mean=("FNR_G2", "mean"),
+            FNR_G2_std=("FNR_G2", lambda x: x.std(ddof=0)),
+            FNR_G3_mean=("FNR_G3", "mean"),
+            FNR_G3_std=("FNR_G3", lambda x: x.std(ddof=0)),
+        )
+        .reindex(GATE_ORDER)
+    )
 
+
+def plot_e5_operating_points(df: pd.DataFrame, out_dir: Path):
+    """Vẽ điểm hoạt động từng gate, tách riêng theo tỉ lệ pack."""
+    outputs = []
     ratios = sorted(df["pack_ratio_set"].unique())
-    gates  = GATE_ORDER
 
-    # Bảng mean ± std qua seed
-    summary = (df.groupby(["gate", "pack_ratio_set"])
-               .agg(FTR_mean=("FTR", "mean"), FTR_std=("FTR", "std"),
-                    FNR_G3_mean=("FNR_G3", "mean"), FNR_G3_std=("FNR_G3", "std"),
-                    Pu_mean=("correct_filter_Punseen", "mean"),
-                    Pu_std=("correct_filter_Punseen", "std"))
-               .reset_index())
+    # Vị trí nhãn theo tọa độ tương đối trong mỗi panel.
+    # Đường dẫn nối nhãn với điểm dữ liệu thực tế.
+    label_positions = {
+        "G2": {
+            "F0": (0.42, 0.10),
+            "F1": (0.06, 0.35),
+            "F2": (0.42, 0.43),
+            "F3a": (0.42, 0.32),
+            "F3": (0.42, 0.21),
+        },
+        "G3": {
+            "F0": (0.42, 0.10),
+            "F1": (0.14, 0.90),
+            "F2": (0.42, 0.62),
+            "F3a": (0.42, 0.51),
+            "F3": (0.42, 0.40),
+        },
+    }
 
-    # grouped bar: correct_Punseen theo cổng × pack_ratio
-    fig, ax = plt.subplots(figsize=(9, 5))
-    fig.patch.set_facecolor("#0d1117")
-    ax.set_facecolor("#161b22")
+    for group in ["G2", "G3"]:
+        fig, axes = plt.subplots(
+            1,
+            len(ratios),
+            figsize=(5 * len(ratios), 5.5),
+            squeeze=False,
+            sharex=True,
+            sharey=True,
+        )
 
-    n_gate   = len(gates)
-    n_ratio  = len(ratios)
-    bar_w    = 0.18
-    x_base   = np.arange(n_gate)
-    ratio_colors = ["#4fc3f7", "#81c784", "#ffb74d"]
+        for ax, ratio in zip(axes[0], ratios):
+            block = df.loc[df["pack_ratio_set"].eq(ratio)]
+            summary = gate_summary(block)
 
-    for ri, ratio in enumerate(ratios):
-        rd = summary[summary.pack_ratio_set == ratio]
-        vals, errs = [], []
-        for g in gates:
-            row = rd[rd.gate == g]
-            if len(row):
-                vals.append(float(row["Pu_mean"].iloc[0]))
-                errs.append(float(row["Pu_std"].iloc[0]) if not pd.isna(row["Pu_std"].iloc[0]) else 0)
-            else:
-                vals.append(0); errs.append(0)
-        offset = (ri - n_ratio / 2 + 0.5) * bar_w
-        bars = ax.bar(x_base + offset, vals, bar_w, yerr=errs, capsize=3,
-                      color=ratio_colors[ri], alpha=0.85,
-                      label=f"pack={int(ratio*100)}%",
-                      error_kw=dict(ecolor="#ffffff80", lw=1))
+            for gate in GATE_ORDER:
+                row = summary.loc[gate]
+                x = float(row["FTR_mean"]) * 100
+                y = float(row[f"FNR_{group}_mean"]) * 100
 
-    ax.set_xticks(x_base)
-    ax.set_xticklabels([GATE_LABELS.get(g, g) for g in gates],
-                       color="#c9d1d9", fontsize=8.5, rotation=10)
-    ax.set_ylabel("correct_Punseen (packer chưa thấy)", color="#c9d1d9", fontsize=10)
-    ax.set_title("E6 — Tỉ lệ nhận đúng Packer chưa thấy theo cổng × tỉ lệ pack\n(mean ± std, 3 seed)",
-                 color="#f0f6fc", fontsize=11, fontweight="bold")
-    ax.tick_params(colors="#8b949e")
-    ax.set_ylim(0, 1.1)
-    ax.axhline(0.5, color="#ffffff30", linestyle="--", linewidth=0.8)
-    for spine in ax.spines.values():
-        spine.set_edgecolor("#30363d")
-    ax.legend(facecolor="#161b22", edgecolor="#30363d", labelcolor="#c9d1d9", fontsize=9)
-    ax.grid(axis="y", color="#21262d", linestyle="--", linewidth=0.6)
-    plt.tight_layout()
-    out3 = os.path.join(out_dir, "e6_per_packer_correct_punseen.png")
-    plt.savefig(out3, dpi=150, bbox_inches="tight", facecolor="#0d1117")
-    plt.close()
-    print(f"[E6] per-packer correct_Punseen → {out3}")
+                ax.errorbar(
+                    x,
+                    y,
+                    xerr=float(row["FTR_std"]) * 100,
+                    yerr=float(row[f"FNR_{group}_std"]) * 100,
+                    fmt=GATE_MARKER[gate],
+                    color=GATE_COLOR[gate],
+                    markersize=11 if gate == "F3" else 7,
+                    linewidth=1.3,
+                    capsize=3,
+                    label=GATE_LABELS[gate],
+                    zorder=3,
+                )
 
-    # Xuất bảng tóm tắt E6
-    tbl = summary[summary.gate == "F3"][["pack_ratio_set", "FTR_mean", "FTR_std",
-                                          "FNR_G3_mean", "FNR_G3_std", "Pu_mean", "Pu_std"]]
-    tbl_path = os.path.join(results_dir, "e6_summary.csv")
-    tbl.to_csv(tbl_path, index=False, float_format="%.4f")
-    print(f"[E6] bảng summary F3 → {tbl_path}")
-    return out3
+                ax.annotate(
+                    gate,
+                    xy=(x, y),
+                    xycoords="data",
+                    xytext=label_positions[group][gate],
+                    textcoords="axes fraction",
+                    ha="left",
+                    va="center",
+                    fontsize=10,
+                    color="#222222",
+                    bbox={
+                        "boxstyle": "round,pad=0.2",
+                        "facecolor": "white",
+                        "edgecolor": "none",
+                        "alpha": 0.95,
+                    },
+                    arrowprops={
+                        "arrowstyle": "-",
+                        "color": "#777777",
+                        "linewidth": 0.8,
+                    },
+                    zorder=4,
+                )
+
+            ax.set_title(
+                f"Target pack: {ratio:.0%}\n"
+                f"Actual pack: {actual_ratio_text(block)}"
+            )
+            ax.set_xlabel("FTR (%)")
+            ax.set_xlim(-5, 105)
+            ax.set_ylim(-5, 105)
+            ax.grid(linestyle="--")
+
+        axes[0, 0].set_ylabel(f"Filter FNR {group} (%)")
+
+        handles, labels = axes[0, 0].get_legend_handles_labels()
+        fig.legend(
+            handles,
+            labels,
+            loc="lower center",
+            bbox_to_anchor=(0.5, 0.09),
+            ncol=len(GATE_ORDER),
+        )
+
+        fig.suptitle(
+            f"E5 — Gate operating points: FTR / filter FNR {group}"
+        )
+        fig.text(
+            0.5,
+            0.025,
+            "Existing CSV results; no threshold sweep. "
+            "Points: mean across seeds; error bars: population SD, not CI.\n"
+            "These figures do not establish end-to-end FNR.",
+            ha="center",
+            fontsize=9,
+        )
+        fig.tight_layout(rect=(0, 0.19, 1, 0.91))
+
+        path = out_dir / f"e5_operating_points_{group.lower()}.png"
+        save_figure(fig, path)
+        plt.close(fig)
+
+        outputs.append(path)
+        print(f"[E5] Đã lưu: {path}")
+
+    return outputs
+
+
+def plot_e6_by_pack_ratio(df: pd.DataFrame, out_dir: Path):
+    """Màu biểu diễn gate; mỗi panel là một tỉ lệ pack."""
+    ratios = sorted(df["pack_ratio_set"].unique())
+    summary = (
+        df.groupby(["pack_ratio_set", "gate"])
+        .agg(
+            correct_mean=("correct_filter_Punseen", "mean"),
+            correct_std=(
+                "correct_filter_Punseen",
+                lambda x: x.std(ddof=0),
+            ),
+            seed_count=("seed", "nunique"),
+            pack_real_min=("pack_ratio_real", "min"),
+            pack_real_max=("pack_ratio_real", "max"),
+        )
+        .reset_index()
+    )
+
+    fig, axes = plt.subplots(
+        1,
+        len(ratios),
+        figsize=(5 * len(ratios), 5),
+        squeeze=False,
+        sharey=True,
+    )
+
+    for ax, ratio in zip(axes[0], ratios):
+        block = df.loc[df["pack_ratio_set"].eq(ratio)]
+        rows = (
+            summary.loc[summary["pack_ratio_set"].eq(ratio)]
+            .set_index("gate")
+            .reindex(GATE_ORDER)
+        )
+
+        values = rows["correct_mean"].to_numpy() * 100
+        errors = rows["correct_std"].to_numpy() * 100
+        bars = ax.bar(
+            GATE_ORDER,
+            values,
+            color=[GATE_COLOR[gate] for gate in GATE_ORDER],
+            yerr=errors,
+            capsize=3,
+            error_kw={"ecolor": "#444444", "linewidth": 1},
+        )
+
+        for bar, value, error in zip(bars, values, errors):
+            ax.text(
+                bar.get_x() + bar.get_width() / 2,
+                value + error + 2,
+                f"{value:.1f}%",
+                ha="center",
+                fontsize=9,
+            )
+
+        ax.set_title(
+            f"Target pack: {ratio:.0%}\n"
+            f"Actual pack: {actual_ratio_text(block)}"
+        )
+        ax.set_xlabel("Gate")
+        ax.set_ylim(0, 115)
+        ax.grid(axis="y", linestyle="--")
+
+    axes[0, 0].set_ylabel("Correct filtering of G1 P-unseen (%)")
+    fig.suptitle("E6 — P-unseen correct filtering by pack ratio")
+    fig.text(
+        0.5,
+        0.025,
+        "Existing CSV results grouped by pack ratio, not by packer.\n"
+        "Bars: mean across seeds; error bars: population SD, not Wilson CI.",
+        ha="center",
+        fontsize=9,
+    )
+    fig.tight_layout(rect=(0, 0.13, 1, 0.90))
+
+    path = out_dir / "e6_by_pack_ratio_correct_punseen.png"
+    save_figure(fig, path)
+    plt.close(fig)
+
+    table_path = out_dir / "e6_by_pack_ratio_plot_summary.csv"
+    summary.to_csv(table_path, index=False)
+
+    print(f"[E6] Đã lưu: {path}")
+    print(f"[E6] Đã lưu: {table_path}")
+    return path
 
 
 def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--results", default="results/")
-    ap.add_argument("--out", default="figs/")
-    args = ap.parse_args()
-    plot_e5_curve(args.results, args.out)
-    plot_e6_per_packer(args.results, args.out)
-    print("✓ Đã xuất tất cả hình vào", args.out)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--results", type=Path, default=Path("results"))
+    parser.add_argument("--out", type=Path, default=Path("figs"))
+    args = parser.parse_args()
+
+    # Đọc và kiểm tra cả hai đầu vào trước khi xuất hình.
+    e5 = load_exp(args.results, "e5")
+    e6 = load_exp(args.results, "e6")
+    args.out.mkdir(parents=True, exist_ok=True)
+
+    plot_e5_operating_points(e5, args.out)
+    plot_e6_by_pack_ratio(e6, args.out)
+    print("Hoàn tất xuất hình nền trắng, 300 dpi.")
 
 
 if __name__ == "__main__":

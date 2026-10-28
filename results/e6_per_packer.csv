@@ -1,0 +1,4 @@
+category,n,FNR_G3,CI_lo,CI_hi
+packer=mpress,153,0.4379,0.3618,0.5171
+native,71,0.9437,0.8639,0.9779
+.NET,82,0.0,0.0,0.0448

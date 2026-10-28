@@ -1,0 +1,4 @@
+comparison,comparator,b,c,p_value,p_adjustment,source
+F3 vs F1 (DiE),F1,86,23,2.88e-09,none,stats_mcnemar.csv
+F3 vs F2 (entropy),F2,20,0,2.15e-05,none,stats_mcnemar.csv
+F3 vs F3a (ablation),F3a,4,0,0.1336,none,stats_mcnemar.csv

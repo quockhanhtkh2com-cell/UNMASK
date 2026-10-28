@@ -48,15 +48,26 @@ def _load_dataset(dataset_path: str, manifest_path: str | None = None):
 
 
 def _subsample_to_ratio(df, pack_ratio: float, seed: int):
-    """Điều chỉnh tỉ lệ mẫu pack trong dữ liệu đưa vào chuông = pack_ratio."""
+    """Điều chỉnh tỉ lệ mẫu pack trong dữ liệu đưa vào chuông = pack_ratio.
+
+    Dùng fixed N=250 để đảm bảo tỉ lệ thực = tỉ lệ yêu cầu:
+    - 0.3 → 75 packed + 175 clean
+    - 0.5 → 125 packed + 125 clean
+    - 0.7 → 175 packed + 75 clean
+    """
     import pandas as pd
     packed = df[df.group.isin(["G1", "G3"]) | df.variant.isin(["P-low", "P-wild"])]
     clean = df[~df.index.isin(packed.index)]
     if len(packed) == 0 or len(clean) == 0:
         return df
-    n_total = len(df)
-    n_packed = min(len(packed), int(round(pack_ratio * n_total)))
-    n_clean = min(len(clean), n_total - n_packed)
+
+    n_total = 250  # Fixed total samples
+    n_packed = int(round(pack_ratio * n_total))
+    n_clean = n_total - n_packed
+
+    if len(packed) < n_packed or len(clean) < n_clean:
+        return df  # Not enough samples, return full df
+
     out = pd.concat([packed.sample(n_packed, random_state=seed),
                      clean.sample(n_clean, random_state=seed)])
     return out.reset_index(drop=True)
@@ -132,24 +143,31 @@ def run(exp: str, dataset: str, seed: int, pack_ratio: float, out_dir: str, dete
     sample = _subsample_to_ratio(df_test, pack_ratio, seed)
     ratio_real = M.pack_ratio(list(sample.group), list(sample.variant))
 
+    # Chạy các cổng trên dữ liệu subsampled (để tính FTR, FNR theo tỉ lệ pack)
+    # Nhưng correct_* metrics phải dùng full test set (Đ8) để nhất quán
+
     rows = []
     for gate in GATES:
-        dec = _gate_decisions(gate, sample, f3_filter, f3a_filter)
+        dec_sample = _gate_decisions(gate, sample, f3_filter, f3a_filter)
         X = sample[FEATURE_NUM].to_numpy(float)
-        alarms = det.predict(X)   # chuông chạy trên TẤT CẢ; FTR bỏ mẫu FILTERED
+        alarms = det.predict(X)   # chuông chạy trên subsampled; FTR bỏ mẫu FILTERED
+
+        # Tính correct_* trên FULL test set cho nhất quán (Đ8)
+        dec_full = _gate_decisions(gate, df_test, f3_filter, f3a_filter)
+
         rows.append({
             "exp": exp, "gate": gate, "seed": seed,
             "pack_ratio_set": pack_ratio, "pack_ratio_real": round(ratio_real, 3),
-            "FTR": M.ftr(dec, list(sample.group), alarms).value,
-            "FNR_G2": M.fnr(dec, list(sample.group), "G2").value,
-            "FNR_G3": M.fnr(dec, list(sample.group), "G3").value,
-            "FNR_e2e_G2": M.fnr_end2end(dec, alarms, list(sample.group), "G2").value,
-            "FNR_e2e_G3": M.fnr_end2end(dec, alarms, list(sample.group), "G3").value,
-            "correct_filter_Pseen": M.correct_filter_rate(dec, list(sample.group), list(sample.variant), "P-seen").value,
-            "correct_filter_Punseen": M.correct_filter_rate(dec, list(sample.group), list(sample.variant), "P-unseen").value,
-            "correct_filter_Plow": M.correct_filter_rate(dec, list(sample.group), list(sample.variant), "P-low").value,
-            "correct_filter_Pwild": M.correct_filter_rate(dec, list(sample.group), list(sample.variant), "P-wild").value,
-            "flagged_rate": M.flagged_rate(dec).value,
+            "FTR": M.ftr(dec_sample, list(sample.group), alarms).value,
+            "FNR_G2": M.fnr(dec_sample, list(sample.group), "G2").value,
+            "FNR_G3": M.fnr(dec_sample, list(sample.group), "G3").value,
+            "FNR_e2e_G2": M.fnr_end2end(dec_sample, alarms, list(sample.group), "G2").value,
+            "FNR_e2e_G3": M.fnr_end2end(dec_sample, alarms, list(sample.group), "G3").value,
+            "correct_filter_Pseen": M.correct_filter_rate(dec_full, list(df_test.group), list(df_test.variant), "P-seen").value,
+            "correct_filter_Punseen": M.correct_filter_rate(dec_full, list(df_test.group), list(df_test.variant), "P-unseen").value,
+            "correct_filter_Plow": M.correct_filter_rate(dec_full, list(df_test.group), list(df_test.variant), "P-low").value,
+            "correct_filter_Pwild": M.correct_filter_rate(dec_full, list(df_test.group), list(df_test.variant), "P-wild").value,
+            "flagged_rate": M.flagged_rate(dec_full).value,
         })
 
     out_df = pd.DataFrame(rows)
