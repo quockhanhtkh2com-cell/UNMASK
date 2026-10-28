@@ -1,0 +1,5 @@
+group,packer,n_score>=thr,similar(FILTERED),novel(FLAGGED),dist_median
+G1,mpress,14.0,14.0,0.0,2.203389575523332
+G1,upx,15.0,15.0,0.0,0.0694481347706012
+G2,none,2.0,2.0,0.0,7.410251726844006
+G3,mpress,71.0,67.0,4.0,2.2332076199954716
