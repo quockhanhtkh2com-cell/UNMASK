@@ -19,20 +19,21 @@ import schema_cols as S          # noqa: E402
 import f1_die, f2_rule           # noqa: E402
 from unmask.filter import load_filter  # noqa: E402
 
-GATES = ["F0", "F1", "F2", "F3", "F3a"]
+GATES = ["F0", "F1", "F1+", "F2", "F3", "F3a"]
 
 
 def _compute_mcnemar_table(dataset_path: str, f3_config_path: str, out_csv: str):
     import pandas as pd
     df = pd.read_csv(dataset_path)
-    if "die_result" not in df.columns:
-        mf_path = os.path.join(os.path.dirname(dataset_path), "manifest_v1.1.csv")
-        if not os.path.exists(mf_path):
-            mf_path = "manifest_v1.1.csv"
-        if os.path.exists(mf_path):
-            mf = pd.read_csv(mf_path)
-            if "die_result" in mf.columns and "sha256" in mf.columns:
-                df = df.merge(mf[["sha256", "die_result"]], on="sha256", how="left")
+    if "die_result_real" not in df.columns:
+        # Try to load from die_real_v1.1.csv (đọc từ dev hoặc local)
+        die_real_path = os.path.join(os.path.dirname(dataset_path), "die_real_v1.1.csv")
+        if not os.path.exists(die_real_path):
+            die_real_path = "die_real_v1.1.csv"
+        if os.path.exists(die_real_path):
+            die_real = pd.read_csv(die_real_path)
+            if "die_result_real" in die_real.columns and "sha256" in die_real.columns:
+                df = df.merge(die_real[["sha256", "die_result_real"]], on="sha256", how="left")
 
     df_test = df[df.split == "test"].reset_index(drop=True)
     if len(df_test) == 0:
@@ -43,7 +44,8 @@ def _compute_mcnemar_table(dataset_path: str, f3_config_path: str, out_csv: str)
 
     dec = {
         "F0": ["PASS"] * len(df_test),
-        "F1": f1_die.run(df_test),
+        "F1": f1_die.run(df_test, variant="packed_only"),
+        "F1+": f1_die.run(df_test, variant="packed_protected"),
         "F2": f2_rule.run(df_test),
         "F3": [f3.decide(r)["decision"] for r in df_test.to_dict("records")],
         "F3a": [f3a.decide(r)["decision"] for r in df_test.to_dict("records")],
@@ -55,6 +57,7 @@ def _compute_mcnemar_table(dataset_path: str, f3_config_path: str, out_csv: str)
 
     groups = df_test["group"].tolist()
     c_f1 = is_correct(dec["F1"], groups)
+    c_f1_plus = is_correct(dec["F1+"], groups)
     c_f2 = is_correct(dec["F2"], groups)
     c_f3 = is_correct(dec["F3"], groups)
     c_f3a = is_correct(dec["F3a"], groups)
@@ -62,11 +65,12 @@ def _compute_mcnemar_table(dataset_path: str, f3_config_path: str, out_csv: str)
     FEATURE_NUM = [c for c in S.FEATURE_COLS if c != "section_name_class"]
 
     m1 = M.mcnemar(c_f3, c_f1)
+    m1_plus = M.mcnemar(c_f3, c_f1_plus)
     m2 = M.mcnemar(c_f3, c_f2)
     m3 = M.mcnemar(c_f3, c_f3a)
 
-    # Holm correction cho 3 tests
-    p_values = [m1["p_value"], m2["p_value"], m3["p_value"]]
+    # Holm correction cho 4 tests (F1, F1+, F2, F3a)
+    p_values = [m1["p_value"], m1_plus["p_value"], m2["p_value"], m3["p_value"]]
     p_holm, is_sig = M.holm_correction(p_values, alpha=0.05)
 
     def get_conclusion(p_orig, p_holm_val, is_significant, test_name):
@@ -86,7 +90,7 @@ def _compute_mcnemar_table(dataset_path: str, f3_config_path: str, out_csv: str)
 
     rows_mc = [
         {
-            "comparison": "F3 vs F1 (DiE)",
+            "comparison": "F3 vs F1 (DiE packed)",
             "b": m1["b"], "c": m1["c"],
             "stat": round(m1["stat"], 4),
             "p_value": f"{m1['p_value']:.2e}" if m1["p_value"] < 0.001 else f"{m1['p_value']:.4f}",
@@ -94,20 +98,28 @@ def _compute_mcnemar_table(dataset_path: str, f3_config_path: str, out_csv: str)
             "conclusion": get_conclusion(m1["p_value"], p_holm[0], is_sig[0], "f1")
         },
         {
+            "comparison": "F3 vs F1+ (DiE packed+protected)",
+            "b": m1_plus["b"], "c": m1_plus["c"],
+            "stat": round(m1_plus["stat"], 4),
+            "p_value": f"{m1_plus['p_value']:.2e}" if m1_plus["p_value"] < 0.001 else f"{m1_plus['p_value']:.4f}",
+            "p_holm": f"{p_holm[1]:.2e}" if p_holm[1] < 0.001 else f"{p_holm[1]:.4f}",
+            "conclusion": get_conclusion(m1_plus["p_value"], p_holm[1], is_sig[1], "f1+")
+        },
+        {
             "comparison": "F3 vs F2 (entropy)",
             "b": m2["b"], "c": m2["c"],
             "stat": round(m2["stat"], 4),
             "p_value": f"{m2['p_value']:.2e}" if m2["p_value"] < 0.001 else f"{m2['p_value']:.4f}",
-            "p_holm": f"{p_holm[1]:.2e}" if p_holm[1] < 0.001 else f"{p_holm[1]:.4f}",
-            "conclusion": get_conclusion(m2["p_value"], p_holm[1], is_sig[1], "f2")
+            "p_holm": f"{p_holm[2]:.2e}" if p_holm[2] < 0.001 else f"{p_holm[2]:.4f}",
+            "conclusion": get_conclusion(m2["p_value"], p_holm[2], is_sig[2], "f2")
         },
         {
             "comparison": "F3 vs F3a (ablation)",
             "b": m3["b"], "c": m3["c"],
             "stat": round(m3["stat"], 4),
             "p_value": f"{m3['p_value']:.4f}",
-            "p_holm": f"{p_holm[2]:.4f}",
-            "conclusion": get_conclusion(m3["p_value"], p_holm[2], is_sig[2], "ablation")
+            "p_holm": f"{p_holm[3]:.4f}",
+            "conclusion": get_conclusion(m3["p_value"], p_holm[3], is_sig[3], "ablation")
         },
     ]
     df_mc = pd.DataFrame(rows_mc)

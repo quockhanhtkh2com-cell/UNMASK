@@ -21,29 +21,29 @@ import f1_die, f2_rule           # noqa: E402
 from detector import DriftDetector  # noqa: E402
 from unmask.filter import UnmaskFilter, load_filter  # noqa: E402
 
-GATES = ["F0", "F1", "F2", "F3", "F3a"]
+GATES = ["F0", "F1", "F1+", "F2", "F3", "F3a"]
 FEATURE_NUM = [c for c in S.FEATURE_COLS if c != "section_name_class"]
 
 
 def _load_dataset(dataset_path: str, manifest_path: str | None = None):
     import pandas as pd
     df = pd.read_csv(dataset_path)
-    if "die_result" not in df.columns:
-        mf_path = manifest_path
-        if not mf_path:
+    if "die_result_real" not in df.columns:
+        die_real_path = manifest_path
+        if not die_real_path:
             candidates = [
-                dataset_path.replace("dataset", "manifest"),
-                os.path.join(os.path.dirname(dataset_path), "manifest_v1.1.csv"),
-                "manifest_v1.1.csv",
+                dataset_path.replace("dataset", "die_real_v1.1"),
+                os.path.join(os.path.dirname(dataset_path), "die_real_v1.1.csv"),
+                "die_real_v1.1.csv",
             ]
             for c in candidates:
                 if os.path.exists(c):
-                    mf_path = c
+                    die_real_path = c
                     break
-        if mf_path and os.path.exists(mf_path):
-            mf = pd.read_csv(mf_path)
-            if "die_result" in mf.columns and "sha256" in mf.columns:
-                df = df.merge(mf[["sha256", "die_result"]], on="sha256", how="left")
+        if die_real_path and os.path.exists(die_real_path):
+            die_real = pd.read_csv(die_real_path)
+            if "die_result_real" in die_real.columns and "sha256" in die_real.columns:
+                df = df.merge(die_real[["sha256", "die_result_real"]], on="sha256", how="left")
     return df
 
 
@@ -90,7 +90,9 @@ def _gate_decisions(gate: str, df, f3_filter, f3a_filter) -> list[str]:
     if gate == "F0":
         return ["PASS"] * len(df)
     if gate == "F1":
-        return f1_die.run(df)
+        return f1_die.run(df, variant="packed_only")
+    if gate == "F1+":
+        return f1_die.run(df, variant="packed_protected")
     if gate == "F2":
         return f2_rule.run(df)
     if gate == "F3":
