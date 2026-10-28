@@ -1,0 +1,6 @@
+group,packer,n,F2_FILTERED,F3_FILTERED,F3_FLAGGED,F3_PASS,F3a_FILTERED,ca_khac_nhau(F2 vs F3 FILTERED)
+G0,none,36,2,0,0,36,0,2
+G1,mpress,35,14,14,0,21,14,0
+G1,upx,15,15,15,0,0,15,0
+G2,none,165,16,2,0,163,2,14
+G3,mpress,153,71,67,4,82,71,4
