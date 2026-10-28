@@ -1,4 +1,4 @@
-comparison,b,c,stat,p_value,conclusion
-F3 vs F1 (DiE),86,23,35.2661,2.88e-09,F3 vượt trội có ý nghĩa thống kê (p < 0.001)
-F3 vs F2 (entropy),20,0,18.05,2.15e-05,F3 vượt trội có ý nghĩa thống kê (p < 0.001)
-F3 vs F3a (ablation),4,0,2.25,0.1336,"dual-check cho thấy xu hướng có lợi (cứu 4 mẫu G3) nhưng chưa đạt ý nghĩa thống kê (p=0.13, do ít mẫu)"
+comparison,b,c,stat,p_value,p_holm,conclusion
+F3 vs F1 (DiE),86,23,35.2661,2.88e-09,8.63e-09,Ý nghĩa thống kê (p_Holm = 8.63e-09 < 0.05)
+F3 vs F2 (entropy),20,0,18.05,2.15e-05,4.30e-05,Ý nghĩa thống kê (p_Holm = 4.30e-05 < 0.05)
+F3 vs F3a (ablation),4,0,2.25,0.1336,0.1336,Không đạt ý nghĩa (p_Holm = 0.1336; p_orig = 0.1336)

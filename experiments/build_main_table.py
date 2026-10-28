@@ -65,27 +65,49 @@ def _compute_mcnemar_table(dataset_path: str, f3_config_path: str, out_csv: str)
     m2 = M.mcnemar(c_f3, c_f2)
     m3 = M.mcnemar(c_f3, c_f3a)
 
+    # Holm correction cho 3 tests
+    p_values = [m1["p_value"], m2["p_value"], m3["p_value"]]
+    p_holm, is_sig = M.holm_correction(p_values, alpha=0.05)
+
+    def get_conclusion(p_orig, p_holm_val, is_significant, test_name):
+        if p_orig < 0.001:
+            p_str = f"{p_orig:.2e}"
+        else:
+            p_str = f"{p_orig:.4f}"
+        p_holm_str = f"{p_holm_val:.2e}" if p_holm_val < 0.001 else f"{p_holm_val:.4f}"
+
+        if is_significant:
+            return f"Ý nghĩa thống kê (p_Holm = {p_holm_str} < 0.05)"
+        else:
+            if test_name == "ablation":
+                return f"Không đạt ý nghĩa (p_Holm = {p_holm_str}; p_orig = {p_str})"
+            else:
+                return f"Không có ý nghĩa thống kê (p_Holm = {p_holm_str})"
+
     rows_mc = [
         {
             "comparison": "F3 vs F1 (DiE)",
             "b": m1["b"], "c": m1["c"],
             "stat": round(m1["stat"], 4),
             "p_value": f"{m1['p_value']:.2e}" if m1["p_value"] < 0.001 else f"{m1['p_value']:.4f}",
-            "conclusion": "F3 vượt trội có ý nghĩa thống kê (p < 0.001)" if m1["p_value"] < 0.05 else "Không có ý nghĩa thống kê"
+            "p_holm": f"{p_holm[0]:.2e}" if p_holm[0] < 0.001 else f"{p_holm[0]:.4f}",
+            "conclusion": get_conclusion(m1["p_value"], p_holm[0], is_sig[0], "f1")
         },
         {
             "comparison": "F3 vs F2 (entropy)",
             "b": m2["b"], "c": m2["c"],
             "stat": round(m2["stat"], 4),
             "p_value": f"{m2['p_value']:.2e}" if m2["p_value"] < 0.001 else f"{m2['p_value']:.4f}",
-            "conclusion": "F3 vượt trội có ý nghĩa thống kê (p < 0.001)" if m2["p_value"] < 0.05 else "Không có ý nghĩa thống kê"
+            "p_holm": f"{p_holm[1]:.2e}" if p_holm[1] < 0.001 else f"{p_holm[1]:.4f}",
+            "conclusion": get_conclusion(m2["p_value"], p_holm[1], is_sig[1], "f2")
         },
         {
             "comparison": "F3 vs F3a (ablation)",
             "b": m3["b"], "c": m3["c"],
             "stat": round(m3["stat"], 4),
             "p_value": f"{m3['p_value']:.4f}",
-            "conclusion": "dual-check cho thấy xu hướng có lợi (cứu 4 mẫu G3) nhưng chưa đạt ý nghĩa thống kê (p=0.13, do ít mẫu)"
+            "p_holm": f"{p_holm[2]:.4f}",
+            "conclusion": get_conclusion(m3["p_value"], p_holm[2], is_sig[2], "ablation")
         },
     ]
     df_mc = pd.DataFrame(rows_mc)
@@ -126,7 +148,10 @@ def build(results_dir: str, out_prefix: str, dataset_path: str = "dataset_v1.1.c
         d = dec_test[gate]
         grp = list(df_test.group)
         var = list(df_test.variant)
+        # FTR cần tính từ tập test 404 mẫu với chuông D1 chạy toàn bộ
+        ftr_rate = M.ftr(d, grp, alarms_test)
         wilson_dict[gate] = {
+            "FTR": ftr_rate.wilson(),
             "FNR_G2": M.fnr(d, grp, "G2").wilson(),
             "FNR_G3": M.fnr(d, grp, "G3").wilson(),
             "FNR_e2e_G2": M.fnr_end2end(d, alarms_test, grp, "G2").wilson(),
@@ -154,6 +179,12 @@ def build(results_dir: str, out_prefix: str, dataset_path: str = "dataset_v1.1.c
         ftr30_mean, ftr30_std = get_stat("FTR", gdf[gdf.pack_ratio_set == 0.3])
         ftr50_mean, ftr50_std = get_stat("FTR", gdf[gdf.pack_ratio_set == 0.5])
         ftr70_mean, ftr70_std = get_stat("FTR", gdf[gdf.pack_ratio_set == 0.7])
+
+        # Lấy Wilson CI từ dict (dùng cho markdown)
+        w = wilson_dict[gate]
+        ftr_ci_30 = w.get("FTR_30", (float('nan'), float('nan')))
+        ftr_ci_50 = w.get("FTR_50", (float('nan'), float('nan')))
+        ftr_ci_70 = w.get("FTR_70", (float('nan'), float('nan')))
 
         fnr_g2_mean, fnr_g2_std = get_stat("FNR_G2")
         fnr_g3_mean, fnr_g3_std = get_stat("FNR_G3")
@@ -190,11 +221,17 @@ def build(results_dir: str, out_prefix: str, dataset_path: str = "dataset_v1.1.c
         def fmt_rate_cell(m, s, ci_lo, ci_hi):
             return f"`{m:.3f}` [{ci_lo:.3f}, {ci_hi:.3f}]"
 
+        # Format FTR với Wilson CI (dùng chung CI cho cả 3 tỉ lệ)
+        ftr_ci_lo, ftr_ci_hi = w.get("FTR", (float('nan'), float('nan')))
+        ftr30_fmt = fmt_cell(ftr30_mean, ftr30_std, ftr_ci_lo, ftr_ci_hi)
+        ftr50_fmt = fmt_cell(ftr50_mean, ftr50_std, ftr_ci_lo, ftr_ci_hi)
+        ftr70_fmt = fmt_cell(ftr70_mean, ftr70_std, ftr_ci_lo, ftr_ci_hi)
+
         rows_md.append({
             "gate": gate,
-            "FTR@30": f"`{ftr30_mean:.3f} ± {ftr30_std:.3f}`",
-            "FTR@50": f"`{ftr50_mean:.3f} ± {ftr50_std:.3f}`",
-            "FTR@70": f"`{ftr70_mean:.3f} ± {ftr70_std:.3f}`",
+            "FTR@30": ftr30_fmt,
+            "FTR@50": ftr50_fmt,
+            "FTR@70": ftr70_fmt,
             "FNR_G2": fmt_cell(fnr_g2_mean, fnr_g2_std, w["FNR_G2"][0], w["FNR_G2"][1]),
             "FNR_G3": fmt_cell(fnr_g3_mean, fnr_g3_std, w["FNR_G3"][0], w["FNR_G3"][1]),
             "FNR_e2e_G2": fmt_cell(fnr_e2e_g2_mean, fnr_e2e_g2_std, w["FNR_e2e_G2"][0], w["FNR_e2e_G2"][1]),
@@ -235,7 +272,6 @@ def build(results_dir: str, out_prefix: str, dataset_path: str = "dataset_v1.1.c
     with open(out_prefix + ".md", "w", encoding="utf-8") as f:
         f.write(full_md)
 
-    print(full_md)
     print(f"[bang_chinh] -> {out_prefix}.csv / .md")
 
 
