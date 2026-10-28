@@ -112,6 +112,31 @@ def mcnemar(a_correct: list[bool], b_correct: list[bool]) -> dict:
     return {"b": b, "c": c, "stat": stat, "p_value": p}
 
 
+def holm_correction(p_values: list[float], alpha: float = 0.05) -> tuple[list[float], list[bool]]:
+    """Holm-Bonferroni correction cho multiple comparisons.
+
+    Returns:
+        (p_corrected, is_significant) — danh sách p-values đã hiệu chỉnh và kết luận.
+    """
+    n = len(p_values)
+    if n == 0:
+        return [], []
+
+    # Sắp xếp theo p-value (tăng dần), giữ track indices gốc
+    sorted_idx = sorted(range(n), key=lambda i: p_values[i])
+    sorted_p = [p_values[i] for i in sorted_idx]
+
+    # Áp dụng Holm: threshold cho lần i-th là alpha / (n - i)
+    p_corrected = [1.0] * n
+    is_sig = [False] * n
+    for i, idx in enumerate(sorted_idx):
+        threshold = alpha / (n - i)
+        p_corrected[idx] = min(sorted_p[i] * (n - i), 1.0)  # Bonferroni step-down
+        is_sig[idx] = sorted_p[i] < threshold
+
+    return p_corrected, is_sig
+
+
 if __name__ == "__main__":
     # demo nhanh
     dec = ["PASS", "FILTERED", "FLAGGED", "PASS"]

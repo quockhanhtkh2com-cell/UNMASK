@@ -97,7 +97,7 @@ def _load_locked() -> dict | None:
     p = os.environ.get("UNMASK_CONFIG") or os.path.join(
         os.path.dirname(__file__), "..", "config", "thresholds.locked.json")
     if os.path.exists(p):
-        cfg = json.load(open(p))
+        cfg = json.load(open(p, encoding="utf-8"))
         return cfg if cfg.get("locked") else None
     return None
 
