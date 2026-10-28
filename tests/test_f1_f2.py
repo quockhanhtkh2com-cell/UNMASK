@@ -12,24 +12,38 @@ import f2_rule as F2
 
 
 @pytest.mark.parametrize(
-    "die_result, expected",
+    "die_result_real, variant, expected",
     [
-        ("packed", "FILTERED"),
-        ("protected", "FILTERED"),
-        ("PACKED", "FILTERED"),
-        ("clean", "PASS"),
-        ("unknown", "PASS"),
+        # F1-DiE (packed_only): chỉ loại packed
+        ("packed", "packed_only", "FILTERED"),
+        ("protected", "packed_only", "PASS"),
+        ("PACKED", "packed_only", "FILTERED"),
+        ("clean", "packed_only", "PASS"),
+        ("unknown", "packed_only", "PASS"),
+        # F1-DiE+protected (packed_protected): loại cả packed + protected
+        ("packed", "packed_protected", "FILTERED"),
+        ("protected", "packed_protected", "FILTERED"),
+        ("PACKED", "packed_protected", "FILTERED"),
+        ("clean", "packed_protected", "PASS"),
+        ("unknown", "packed_protected", "PASS"),
     ],
 )
-def test_f1_decide(die_result, expected):
-    assert F1.decide({"die_result": die_result}) == expected
+def test_f1_decide(die_result_real, variant, expected):
+    assert F1.decide({"die_result_real": die_result_real}, variant=variant) == expected
 
 
-def test_f1_run_preserves_order():
+def test_f1_run_packed_only():
     df = pd.DataFrame({
-        "die_result": ["clean", "packed", "unknown", "protected"],
+        "die_result_real": ["clean", "packed", "unknown", "protected"],
     })
-    assert F1.run(df) == ["PASS", "FILTERED", "PASS", "FILTERED"]
+    assert F1.run(df, variant="packed_only") == ["PASS", "FILTERED", "PASS", "PASS"]
+
+
+def test_f1_run_packed_protected():
+    df = pd.DataFrame({
+        "die_result_real": ["clean", "packed", "unknown", "protected"],
+    })
+    assert F1.run(df, variant="packed_protected") == ["PASS", "FILTERED", "PASS", "FILTERED"]
 
 
 @pytest.mark.parametrize(

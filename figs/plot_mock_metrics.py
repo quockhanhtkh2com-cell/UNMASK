@@ -124,7 +124,7 @@ def main():
 
     decisions = {
         "F0": ["PASS"] * len(df),
-        "F1": f1_die.run(df),
+        "F1": f1_die.run(df, variant="packed_only"),
         "F2": f2_rule.run(df),
         "F3": df["F3_decision"].tolist(),
     }

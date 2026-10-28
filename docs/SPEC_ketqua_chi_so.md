@@ -20,11 +20,11 @@
 
 ## 2. Cột BẮT BUỘC của `bang_chinh` (mỗi dòng = 1 cổng)
 
-Các dòng: **F0 · F1 · F2 · F3 · F3a** (F3a = F3 bỏ dual-check, dòng ablation).
+Các dòng: **F0 · F1 · F1+ · F2 · F3 · F3a** (F1+ = F1 với sensitivity phát hiện protected; F3a = F3 bỏ dual-check, dòng ablation).
 
 | Cột | Nghĩa | Kèm CI? |
 |---|---|:---:|
-| `gate` | tên cổng (F0/F1/F2/F3/F3a) | — |
+| `gate` | tên cổng (F0/F1/F1+/F2/F3/F3a) | — |
 | `FTR@30`, `FTR@50`, `FTR@70` | tỉ lệ báo nhầm drift do đổi vỏ, theo tỉ lệ pack 0.3/0.5/0.7 | ✅ Wilson 95% |
 | `FNR_G2` | bỏ sót drift thật ở nhóm "đổi lõi" (G2) | ✅ Wilson 95% |
 | `FNR_G3` | bỏ sót drift thật ở nhóm "đổi cả hai" (G3) | ✅ Wilson 95% |
@@ -40,7 +40,7 @@ Các dòng: **F0 · F1 · F2 · F3 · F3a** (F3a = F3 bỏ dual-check, dòng abl
 
 1. **Point estimate:** FTR theo từng tỉ lệ pack; FNR **tách riêng G2 vs G3**; correct-filter theo biến thể; flagged_rate.
 2. **Wilson 95% CI** cho MỌI tỉ lệ — hàm `wilson_ci()` đã có trong `src/eval_metrics.py`, chỉ cần gọi.
-3. **McNemar** (ghép cặp, vì các cổng chấm *cùng* 404 mẫu test): **F3 vs F1**, **F3 vs F2**, **F3 vs F3a** → xuất `p-value` + đếm `b,c` ra `results/stats_mcnemar.csv`.
+3. **McNemar** (ghép cặp, vì các cổng chấm *cùng* 404 mẫu test): **F3 vs F1**, **F3 vs F1+**, **F3 vs F2**, **F3 vs F3a** (Holm correction cho 4 tests) → xuất `p-value` + đếm `b,c` ra `results/stats_mcnemar.csv`.
 4. **Variance:** mean ± std qua **3 seed × 3 pack-ratio**.
 5. **Ablation:** **F3a** (`--no-dualcheck`) là **một dòng riêng** trong bảng để đo công của dual-check.
 
@@ -57,8 +57,8 @@ Các dòng: **F0 · F1 · F2 · F3 · F3a** (F3a = F3 bỏ dual-check, dòng abl
 - [ ] Đủ `results_*.csv` cho e1–e6 × 3 seed × 3 pack
 - [ ] `bang_chinh.csv/.md` = **số thật** (không còn số mock)
 - [ ] Mọi tỉ lệ có **± Wilson CI**
-- [ ] `stats_mcnemar.csv` có p-value cho F3vsF1, F3vsF2, F3vsF3a
-- [ ] **F3a** có mặt trong bảng
+- [ ] `stats_mcnemar.csv` có p-value cho F3vsF1, F3vsF1+, F3vsF2, F3vsF3a (Holm correction)
+- [ ] **F1+ · F3a** có mặt trong bảng
 - [ ] Dùng đúng `--f3-config config/thresholds.locked.json` (không train lại)
 
 ---
