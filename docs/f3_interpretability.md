@@ -51,6 +51,6 @@ Tổng số mẫu F2 và F3 quyết định FILTERED khác nhau: **20/404**.
    - 2 mẫu G0 (sạch): F2 loại, F3 cho qua.
    - 4 mẫu G3: F2 loại, F3 gắn cờ FLAGGED nhờ dual-check.
 2. **Ở nhóm G1, F3 và F2 giống hệt**: UPX 15/15, MPRESS 14/35. Vì vậy correct_Punseen của F2, F3 và F3a trùng nhau; giá trị trên đủ 404 mẫu test là 14/35 = 0.400 (n=35). F3 không hơn F2 ở packer chưa gặp.
-3. **packed_score không chỉ là luật entropy**: tương quan với entropy_max_section là 0.484; AUC 0.765 so với 0.662 (entropy) và 0.726 (ep_section_writable). Tuy nhiên điểm bị chi phối bởi ep_section_writable (trọng số chuẩn hóa 1.965, lớn nhất; đóng góp trung bình +1.306 ở nhóm pack so với -0.849 ở nhóm không pack). Mô hình học trên G0 và G1-UPX nên đây là dấu hiệu đặc trưng của UPX, nên MPRESS bị bỏ sót tương tự F2.
+3. **packed_score không chỉ là luật entropy**: tương quan với entropy_max_section là 0.484; AUC 0.765 so với 0.662 (entropy) và 0.726 (ep_section_writable). Tuy nhiên điểm bị chi phối bởi ep_section_writable (trọng số chuẩn hóa 1.965, lớn nhất; đóng góp trung bình +1.306 ở nhóm pack so với -0.849 ở nhóm không pack). Mô hình học trên G0 và G1-UPX nên đây là dấu hiệu đặc trưng của UPX, và đó có thể là lý do MPRESS bị bỏ sót tương tự F2.
 4. Dấu âm của raw_virtual_ratio (-1.075) và import_table_shrink (-0.484) chưa được kiểm chứng ý nghĩa; không diễn giải nhân quả. import_table_shrink dùng baseline theo is_dotnet (trung vị .NET = 1 API) nên thông tin hạn chế.
 5. AUC tính với nhãn pack là G1+G3 (gồm cả MPRESS), nên một phần AUC thấp là do bỏ sót MPRESS.
