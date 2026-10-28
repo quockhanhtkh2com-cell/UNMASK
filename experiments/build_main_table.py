@@ -245,11 +245,17 @@ def build(results_dir: str, out_prefix: str, dataset_path: str = "dataset_v1.1.c
         def fmt_rate_cell(m, s, ci_lo, ci_hi):
             return f"`{m:.3f}` [{ci_lo:.3f}, {ci_hi:.3f}]"
 
-        # Format FTR với Wilson CI (dùng chung CI cho cả 3 tỉ lệ)
+        # Wilson CI cho FTR (w["FTR"]) được tính trên 404 mẫu test thật (D1 chạy toàn bộ,
+        # KHÔNG chia theo pack_ratio_set). CI này chỉ tương ứng với kịch bản FTR@50 (tỉ lệ
+        # pack ~0.5 là kịch bản mặc định/đại diện của pipeline thật) — đã kiểm chứng điểm
+        # ftr50_mean luôn nằm trong CI này ở mọi gate. Không gắn CI này cho @30/@70 vì đó là
+        # 2 kịch bản mô phỏng khác (ftr30_mean/ftr70_mean tính riêng từ results_*.csv theo
+        # pack_ratio_set), không có Wilson CI riêng (cần đếm thô numerator/denominator theo
+        # từng tỉ lệ, hiện chưa được lưu lại trong results_*.csv).
         ftr_ci_lo, ftr_ci_hi = w.get("FTR", (float('nan'), float('nan')))
-        ftr30_fmt = fmt_cell(ftr30_mean, ftr30_std, ftr_ci_lo, ftr_ci_hi)
+        ftr30_fmt = f"`{ftr30_mean:.3f} ± {ftr30_std:.3f}`"
         ftr50_fmt = fmt_cell(ftr50_mean, ftr50_std, ftr_ci_lo, ftr_ci_hi)
-        ftr70_fmt = fmt_cell(ftr70_mean, ftr70_std, ftr_ci_lo, ftr_ci_hi)
+        ftr70_fmt = f"`{ftr70_mean:.3f} ± {ftr70_std:.3f}`"
 
         rows_md.append({
             "gate": gate,
@@ -283,7 +289,8 @@ def build(results_dir: str, out_prefix: str, dataset_path: str = "dataset_v1.1.c
         md_content.append(f"| {r['gate']} | {r['FTR@30']} | {r['FTR@50']} | {r['FTR@70']} | {r['FNR_G2']} | {r['FNR_G3']} | {r['FNR_e2e_G2']} | {r['FNR_e2e_G3']} | {r['correct_Pseen']} | {r['correct_Punseen']} | {r['correct_Plow']} | {r['correct_Pwild']} | {r['flagged_rate']} |")
 
     md_content.append("\n* Chú thích: `FNR_G2/G3` = tỉ lệ bỏ sót do bộ lọc loại nhầm; `FNR_e2e` = tỉ lệ bỏ sót toàn trình (bộ lọc loại HOẶC chuông D1 không kêu).")
-    md_content.append("* `±` = std qua các seed; `[...]` = khoảng tin cậy Wilson 95% CI [lo, hi].*\n\n")
+    md_content.append("* `±` = std qua các seed; `[...]` = khoảng tin cậy Wilson 95% CI [lo, hi].")
+    md_content.append("* `FTR@50` kèm Wilson 95% CI tính trực tiếp trên 404 mẫu test (kịch bản pack-ratio mặc định). `FTR@30`/`FTR@70` là mean ± std qua 3 seed từ các kịch bản mô phỏng tỉ lệ pack khác, hiện chưa có CI riêng (cần lưu thêm số đếm thô theo từng tỉ lệ) nên không hiển thị CI để tránh hiểu nhầm.*\n\n")
     md_content.append("## Bảng kiểm định McNemar (ghép cặp trên cùng 404 mẫu test)\n\n")
     md_content.append("| So sánh | b (F3 đúng, kia sai) | c (F3 sai, kia đúng) | p-value | Kết luận |")
     md_content.append("|:---|:---:|:---:|:---:|:---|")
