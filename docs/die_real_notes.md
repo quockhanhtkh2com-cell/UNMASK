@@ -1,27 +1,27 @@
-﻿# DiE tháº­t cho cá»•ng F1 â€” ghi chÃº (manifest v1.1)
+# DiE thật cho cổng F1 — ghi chú (manifest v1.1)
 
-QuÃ©t: KhÃ¡nh (Kali). RÃ  sá»‘, bá» mÃ£ mÃ u, Ä‘Æ°a lÃªn repo: Tuáº¥n.
+Quét: Khánh (Kali). Rà số, bỏ mã màu, đưa lên repo: Tuấn.
 
-## CÃ´ng cá»¥ vÃ  mÃ´i trÆ°á»ng
+## Công cụ và môi trường
 
-- Detect It Easy dÃ²ng lá»‡nh `diec` **phiÃªn báº£n 3.21** (`die 3.21`), báº£n portable Linux, cháº¡y qua `diec.sh`.
-- Há»‡ Ä‘iá»u hÃ nh: Kali Linux (mÃ¡y cá»§a KhÃ¡nh). **[KhÃ¡nh bá»• sung: phiÃªn báº£n Kali]**
-- SHA-256 cá»§a gÃ³i DiE portable Ä‘Ã£ dÃ¹ng: **[KhÃ¡nh bá»• sung: cháº¡y `sha256sum` trÃªn file táº£i vá»]**. (GÃ³i `.deb` Ubuntu 26.04 mÃ  Tuáº¥n cÃ i thá»­ cÃ³ SHA-256 `ef4474d93e00f3644ea680518c43b3a65fe3fb739f6d7eac5d13b82235f339b5`, nhÆ°ng Ä‘Ã³ khÃ´ng pháº£i báº£n dÃ¹ng Ä‘á»ƒ quÃ©t.)
-- Lá»‡nh cháº¡y cho tá»«ng máº«u: `diec.sh <Ä‘Æ°á»ng_dáº«n_máº«u>` (quÃ©t máº·c Ä‘á»‹nh, chá»‰ phÃ¢n tÃ­ch tÄ©nh, khÃ´ng thá»±c thi máº«u). Timeout 30 giÃ¢y má»—i máº«u.
-- Máº¡ng khi quÃ©t: **[KhÃ¡nh xÃ¡c nháº­n: Ä‘Ã£ táº¯t hay chÆ°a]**
-- Script: `experiments/run_die_real.py` (báº£n cá»§a KhÃ¡nh; Tuáº¥n chá»‰ thÃªm Ä‘oáº¡n bá» mÃ£ mÃ u ANSI khá»i output). Máº«u Ä‘Æ°á»£c khá»›p vá»›i manifest báº±ng cÃ¡ch **tá»± tÃ­nh SHA-256 tá»«ng file** (tÃªn file á»Ÿ G1/G3 khÃ´ng pháº£i SHA-256).
-- KhÃ´ng sá»­a `manifest_v1.1.csv` vÃ  `dataset_v1.1.csv`.
+- Detect It Easy dòng lệnh `diec` **phiên bản 3.21** (`die 3.21`), bản portable Linux, chạy qua `diec.sh`.
+- Hệ điều hành: Kali Linux **2026.3** (Kali Rolling, máy của Khánh).
+- SHA-256 của gói DiE portable đã dùng: file `die_3.21_portable_Ubuntu_20.04_amd64.tar.gz`, SHA-256 `4d85614dd169c0d23f52084f86e05a503c30429df5fb5ec14de50f23808bc2d4`. (Gói `.deb` Ubuntu 26.04 mà Tuấn cài thử có SHA-256 `ef4474d93e00f3644ea680518c43b3a65fe3fb739f6d7eac5d13b82235f339b5`, nhưng đó không phải bản dùng để quét.)
+- Lệnh chạy cho từng mẫu: `diec.sh <đường_dẫn_mẫu>` (quét mặc định, chỉ phân tích tĩnh, không thực thi mẫu). Timeout 30 giây mỗi mẫu.
+- Mạng khi quét: **không tắt** (máy quét vẫn nối mạng). DiE chỉ phân tích tĩnh, không thực thi mẫu.
+- Script: `scripts/run_die_real.py` (bản của Khánh; Tuấn chỉ thêm đoạn bỏ mã màu ANSI khỏi output). Mẫu được khớp với manifest bằng cách **tự tính SHA-256 từng file** (tên file ở G1/G3 không phải SHA-256).
+- Không sửa `manifest_v1.1.csv` và `dataset_v1.1.csv`.
 
-## CÃ¡ch quy Ä‘á»•i output cá»§a DiE sang nhÃ£n `die_result_real`
+## Cách quy đổi output của DiE sang nhãn `die_result_real`
 
-- CÃ³ dÃ²ng `Protector: â€¦` â†’ **protected**
-- KhÃ´ng cÃ³ Protector nhÆ°ng cÃ³ dÃ²ng `Packer: â€¦` â†’ **packed**
-- Output rá»—ng, hoáº·c dÃ²ng Ä‘áº§u cÃ³ chá»¯ "unknown" â†’ **unknown**
-- CÃ²n láº¡i â†’ **clean** (DiE khÃ´ng tháº¥y packer/protector)
-- Trong 596 máº«u khÃ´ng cÃ³ máº«u nÃ o vá»«a cÃ³ Packer vá»«a cÃ³ Protector, nÃªn thá»© tá»± Æ°u tiÃªn trÃªn khÃ´ng áº£nh hÆ°á»Ÿng káº¿t quáº£.
-- `die_detect`: dÃ²ng Packer/Protector Ä‘áº§u tiÃªn (Ä‘Ã£ bá» mÃ£ mÃ u). `die_raw`: toÃ n bá»™ output, cÃ¡c dÃ²ng ná»‘i báº±ng " | " (Ä‘Ã£ bá» mÃ£ mÃ u ANSI, ná»™i dung giá»¯ nguyÃªn).
+- Có dòng `Protector: …` → **protected**
+- Không có Protector nhưng có dòng `Packer: …` → **packed**
+- Output rỗng, hoặc dòng đầu có chữ "unknown" → **unknown**
+- Còn lại → **clean** (DiE không thấy packer/protector)
+- Trong 596 mẫu không có mẫu nào vừa có Packer vừa có Protector, nên thứ tự ưu tiên trên không ảnh hưởng kết quả.
+- `die_detect`: dòng Packer/Protector đầu tiên (đã bỏ mã màu). `die_raw`: toàn bộ output, các dòng nối bằng " | " (đã bỏ mã màu ANSI, nội dung giữ nguyên).
 
-## Sá»‘ lÆ°á»£ng theo nhÃ³m (596/596 máº«u, thiáº¿u 0)
+## Số lượng theo nhóm (596/596 mẫu, thiếu 0)
 
 | group | clean | packed | protected | unknown |
 |---|---|---|---|---|
@@ -30,11 +30,11 @@ QuÃ©t: KhÃ¡nh (Kali). RÃ  sá»‘, bá» mÃ£ mÃ u, Ä‘Æ°a lÃª
 | G2 | 158 | 2 | 5 | 0 |
 | G3 | 0 | 153 | 0 | 0 |
 
-Tá»•ng theo nhÃ³m: G0 122, G1 156, G2 165, G3 153.
+Tổng theo nhóm: G0 122, G1 156, G2 165, G3 153.
 
-## DiE phÃ¡t hiá»‡n gÃ¬
+## DiE phát hiện gì
 
-| group | DiE phÃ¡t hiá»‡n | sá»‘ máº«u |
+| group | DiE phát hiện | số mẫu |
 |---|---|---|
 | G0 | Protector: .NET Reactor(6.X)[Control Flow, Anti-ILDASM] | 11 |
 | G0 | Protector: .NET Reactor(6.X)[Control Flow] | 1 |
@@ -47,22 +47,21 @@ Tá»•ng theo nhÃ³m: G0 122, G1 156, G2 165, G3 153.
 | G3 | Packer: MPRESS(2.01-2.12)[modified] | 1 |
 | G3 | Packer: MPRESS(2.19) | 152 |
 
-## Quan sÃ¡t
+## Quan sát
 
-- **G1 vÃ  G3 (Ä‘Ã£ Ä‘Ã³ng gÃ³i báº±ng UPX/MPRESS): DiE nháº­n ra 309/309 máº«u lÃ  `packed`** (G1: UPX 39/39, MPRESS 117/117; G3: MPRESS 153/153, trong Ä‘Ã³ 1 máº«u DiE ghi "MPRESS(2.01-2.12)[modified]").
-- **G0 (AgentTesla sáº¡ch): 0 máº«u `packed`, nhÆ°ng 12/122 máº«u `protected`** (cáº£ 12 Ä‘á»u lÃ  .NET Reactor 6.X, má»™t cÃ´ng cá»¥ lÃ m rá»‘i .NET, khÃ´ng pháº£i packer). Náº¿u F1-DiE tÃ­nh cáº£ `protected` lÃ  "Ä‘Ã£ Ä‘Ã³ng gÃ³i" thÃ¬ 12 máº«u G0 nÃ y bá»‹ bÃ¡o nháº§m.
-- **Bonus G2 (há» khÃ¡c, chÆ°a Ä‘Ã³ng gÃ³i thÃªm): DiE nháº­n 2/165 lÃ  `packed`** (Ä‘á»u UPX: 3.95 vÃ  4.24) **vÃ  5/165 lÃ  `protected`** (4 .NET Reactor, 1 PELock).
-- 4 máº«u G2 cÃ³ output "Unknown: Unknown" (DiE khÃ´ng khá»›p chá»¯ kÃ½ nÃ o) Ä‘ang Ä‘Æ°á»£c gÃ¡n `clean` theo quy táº¯c trÃªn. GÃ¡n `unknown` hay `clean` khÃ´ng Ä‘á»•i káº¿t quáº£ cá»•ng, vÃ¬ cáº£ hai Ä‘á»u khÃ´ng bá»‹ F1 cháº·n.
-- Cá»™t `die_result` Ä‘Ã£ gÃ¡n sáºµn trong manifest chÆ°a Ä‘Æ°á»£c so sÃ¡nh trong file nÃ y (khÃ´ng cÃ³ manifest á»Ÿ mÃ¡y rÃ  sá»‘). Äá»©c hoáº·c KhÃ¡nh Ä‘á»‘i chiáº¿u khi cháº¡y lÆ°á»›i.
+- **G1 và G3 (đã đóng gói bằng UPX/MPRESS): DiE nhận ra 309/309 mẫu là `packed`** (G1: UPX 39/39, MPRESS 117/117; G3: MPRESS 153/153, trong đó 1 mẫu DiE ghi "MPRESS(2.01-2.12)[modified]").
+- **G0 (AgentTesla sạch): 0 mẫu `packed`, nhưng 12/122 mẫu `protected`** (cả 12 đều là .NET Reactor 6.X, một công cụ làm rối .NET, không phải packer). Nếu F1-DiE tính cả `protected` là "đã đóng gói" thì 12 mẫu G0 này bị báo nhầm.
+- **Bonus G2 (họ khác, chưa đóng gói thêm): DiE nhận 2/165 là `packed`** (đều UPX: 3.95 và 4.24) **và 5/165 là `protected`** (4 .NET Reactor, 1 PELock).
+- 4 mẫu G2 có output "Unknown: Unknown" (DiE không khớp chữ ký nào) đang được gán `clean` theo quy tắc trên. Gán `unknown` hay `clean` không đổi kết quả cổng, vì cả hai đều không bị F1 chặn.
+- Cột `die_result` đã gán sẵn trong manifest chưa được so sánh trong file này (không có manifest ở máy rà số). Đức hoặc Khánh đối chiếu khi chạy lưới.
 
-## CÃ¡ch dÃ¹ng trong lÆ°á»›i F1-DiE
+## Cách dùng trong lưới F1-DiE
 
-- Äá»c cá»™t `die_result_real`, ná»‘i theo `sha256`.
-- Gá»£i Ã½ cháº¡y hai biáº¿n thá»ƒ: **F1-DiE = chá»‰ `packed`** (chÃ­nh) vÃ  **F1-DiE+protected = `packed` hoáº·c `protected`** (Ä‘á»™ nháº¡y).
+- Đọc cột `die_result_real`, nối theo `sha256`.
+- Gợi ý chạy hai biến thể: **F1-DiE = chỉ `packed`** (chính) và **F1-DiE+protected = `packed` hoặc `protected`** (độ nhạy).
 
-## ToÃ n váº¹n file
+## Toàn vẹn file
 
-- File KhÃ¡nh gá»­i (cÃ²n mÃ£ mÃ u): SHA-256 `87b0b7a4480c73b0914bacb26ec50f5c5878ab98a8985c467563e576370084d1`
-- `results/die_real_v1.1.csv` trong repo (Ä‘Ã£ bá» mÃ£ mÃ u): SHA-256 `27f8ec36553dd2994f1d55d2400d86f6be390025a7f85d73ca9771d59d101481`
-- Cá»™t `sha256`, `group` vÃ  `die_result_real` giá»‘ng há»‡t file gá»‘c.
-
+- File Khánh gửi (còn mã màu): SHA-256 `87b0b7a4480c73b0914bacb26ec50f5c5878ab98a8985c467563e576370084d1`
+- `results/die_real_v1.1.csv` trong repo (đã bỏ mã màu): SHA-256 `27f8ec36553dd2994f1d55d2400d86f6be390025a7f85d73ca9771d59d101481`
+- Cột `sha256`, `group` và `die_result_real` giống hệt file gốc.

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Quét DiE thật, match file bằng cách TỰ HASH (không dựa tên file vì G1/G3 đặt tên khác sha256)."""
-import csv, hashlib, os, subprocess, sys
+import csv, hashlib, os, re, subprocess, sys
 from collections import Counter
 
 MANIFEST = "manifest_v1.1.csv"
@@ -9,6 +9,7 @@ SEARCH_DIRS = ["g0_all", "g1_upx_v11", "g1_mpress_v11", "g2_live", "g3_mpress"]
 OUT_CSV = "results/die_real_v1.1.csv"
 OUT_NOTES = "docs/die_real_notes.md"
 DIEC = os.path.expanduser("~/die_portable/die_linux_portable/diec.sh")
+ANSI = re.compile(r"\x1b\[[0-9;]*m")  # diec.sh in kèm mã màu; bỏ để die_raw/die_detect đọc được
 
 def sha256_of(path, chunk=1 << 20):
     h = hashlib.sha256()
@@ -71,6 +72,7 @@ def main():
             raw_out = proc.stdout.strip() or proc.stderr.strip()
         except Exception as e:
             raw_out = f"ERROR: {e}"
+        raw_out = ANSI.sub("", raw_out)
         result = classify(raw_out)
         detect_line = next((l.strip() for l in raw_out.splitlines()
                              if "packer" in l.lower() or "protector" in l.lower()), "")
