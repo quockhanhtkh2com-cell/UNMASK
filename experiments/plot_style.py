@@ -5,20 +5,22 @@ import matplotlib as mpl
 from cycler import cycler
 
 
-GATE_ORDER = ["F0", "F1", "F2", "F3a", "F3"]
+GATE_ORDER = ["F0", "F1", "F1+", "F2", "F3a", "F3"]
 
 GATE_LABELS = {
     "F0": "F0 (baseline)",
-    "F1": "F1 (DiE)",
+    "F1": "F1 (DiE packed)",
+    "F1+": "F1+ (DiE packed+protected)",
     "F2": "F2 (entropy rule)",
     "F3a": "F3a (ablation)",
     "F3": "F3 (UNMASK)",
 }
 
-# Giữ bảng màu 5 cổng đang dùng trong bản dev.
+# Giữ bảng màu 6 cổng (thêm F1+ để phân tích độ nhạy).
 GATE_COLOR = {
     "F0": "#9e9e9e",
     "F1": "#ef5350",
+    "F1+": "#e91e63",
     "F2": "#ff9800",
     "F3a": "#42a5f5",
     "F3": "#26c6da",
@@ -27,6 +29,7 @@ GATE_COLOR = {
 GATE_MARKER = {
     "F0": "s",
     "F1": "^",
+    "F1+": "v",
     "F2": "D",
     "F3a": "o",
     "F3": "*",
@@ -35,6 +38,7 @@ GATE_MARKER = {
 GATE_SIZE = {
     "F0": 80,
     "F1": 80,
+    "F1+": 80,
     "F2": 80,
     "F3a": 80,
     "F3": 140,
