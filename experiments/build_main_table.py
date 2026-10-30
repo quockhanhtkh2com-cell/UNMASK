@@ -79,7 +79,7 @@ def _compute_mcnemar_table(dataset_path: str, f3_config_path: str, out_csv: str)
     m1 = M.mcnemar(c_f3, c_f1)
     m1_plus = M.mcnemar(c_f3, c_f1_plus)
     m2 = M.mcnemar(c_f3, c_f2)
-    m3 = M.mcnemar(c_f3, c_f3a)
+    m3 = M.mcnemar_exact(c_f3, c_f3a)
 
     # Holm correction cho 4 tests (F1, F1+, F2, F3a)
     p_values = [m1["p_value"], m1_plus["p_value"], m2["p_value"], m3["p_value"]]
@@ -135,6 +135,12 @@ def _compute_mcnemar_table(dataset_path: str, f3_config_path: str, out_csv: str)
         },
     ]
     df_mc = pd.DataFrame(rows_mc)
+    df_mc["test_method"] = [
+        "exact_binomial_two_sided"
+        if comparison == "F3 vs F3a (ablation)"
+        else "mcnemar_chi_square_continuity_corrected"
+        for comparison in df_mc["comparison"]
+    ]
     df_mc.to_csv(out_csv, index=False)
     print(f"[mcnemar] -> {out_csv}")
     return df_mc, dec, df_test, FEATURE_NUM
