@@ -1,0 +1,7 @@
+config,cols,threshold,group,n,n_similar_FILTERED
+4 cột (khoá),file_size+size_of_headers+compile_timestamp+is_dotnet,13.206,G1,29,29
+4 cột (khoá),file_size+size_of_headers+compile_timestamp+is_dotnet,13.206,G2,2,2
+4 cột (khoá),file_size+size_of_headers+compile_timestamp+is_dotnet,13.206,G3,71,67
+bỏ file_size,size_of_headers+compile_timestamp+is_dotnet,1.184,G1,29,15
+bỏ file_size,size_of_headers+compile_timestamp+is_dotnet,1.184,G2,2,0
+bỏ file_size,size_of_headers+compile_timestamp+is_dotnet,1.184,G3,71,0

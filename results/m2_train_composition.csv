@@ -1,0 +1,4 @@
+group,packer,is_dotnet,n
+G0,none,0,24
+G0,none,1,62
+G1,upx,0,24

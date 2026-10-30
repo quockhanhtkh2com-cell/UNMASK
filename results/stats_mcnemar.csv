@@ -1,5 +1,5 @@
 comparison,b,c,stat,p_value,p_holm,conclusion
-F3 vs F1 (DiE packed),86,21,38.2804,6.13e-10,1.84e-09,Ý nghĩa thống kê (p_Holm = 1.84e-09 < 0.05)
-F3 vs F1+ (DiE packed+protected),93,21,44.2193,2.94e-11,1.17e-10,Ý nghĩa thống kê (p_Holm = 1.17e-10 < 0.05)
+F3 vs F1-DiE (DiE packed),86,21,38.2804,6.13e-10,1.84e-09,Ý nghĩa thống kê (p_Holm = 1.84e-09 < 0.05)
+F3 vs F1-DiE+protected (DiE packed+protected),93,21,44.2193,2.94e-11,1.17e-10,Ý nghĩa thống kê (p_Holm = 1.17e-10 < 0.05)
 F3 vs F2 (entropy),20,0,18.05,2.15e-05,4.30e-05,Ý nghĩa thống kê (p_Holm = 4.30e-05 < 0.05)
 F3 vs F3a (ablation),4,0,2.25,0.1336,0.1336,Không đạt ý nghĩa (p_Holm = 0.1336; p_orig = 0.1336)

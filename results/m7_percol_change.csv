@@ -1,0 +1,5 @@
+col,n_pairs,changed_all,changed_mpress,changed_upx,median_rel_change
+file_size,156,1.0,1.0,1.0,0.076
+size_of_headers,156,0.237,0.308,0.026,0.0
+compile_timestamp,156,0.526,0.701,0.0,0.243
+is_dotnet,156,0.0,0.0,0.0,0.0
