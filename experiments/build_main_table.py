@@ -226,14 +226,20 @@ def build(results_dir: str, out_prefix: str, dataset_path: str = "dataset_v1.1.c
         ftr_ci_50 = w.get("FTR_50", (float('nan'), float('nan')))
         ftr_ci_70 = w.get("FTR_70", (float('nan'), float('nan')))
 
-        fnr_g2_mean, fnr_g2_std = get_stat("FNR_G2")
-        fnr_g3_mean, fnr_g3_std = get_stat("FNR_G3")
-        fnr_e2e_g2_mean, fnr_e2e_g2_std = get_stat("FNR_e2e_G2")
-        fnr_e2e_g3_mean, fnr_e2e_g3_std = get_stat("FNR_e2e_G3")
+        # SUA M1: tinh truc tiep tren 404 mau test day du (cung nguon voi Wilson CI o tren),
+        # KHONG lay trung binh qua cac lan resample (results_*.csv) - tranh lan 2 nguon khac nhau.
+        d_full = dec_test[gate]
+        grp_full = list(df_test.group)
+        var_full = list(df_test.variant)
 
-        pseen_mean, pseen_std = get_stat("correct_filter_Pseen")
-        punseen_mean, punseen_std = get_stat("correct_filter_Punseen")
-        flagged_mean, flagged_std = get_stat("flagged_rate")
+        fnr_g2_mean, fnr_g2_std = M.fnr(d_full, grp_full, "G2").value, 0.0
+        fnr_g3_mean, fnr_g3_std = M.fnr(d_full, grp_full, "G3").value, 0.0
+        fnr_e2e_g2_mean, fnr_e2e_g2_std = M.fnr_end2end(d_full, alarms_test, grp_full, "G2").value, 0.0
+        fnr_e2e_g3_mean, fnr_e2e_g3_std = M.fnr_end2end(d_full, alarms_test, grp_full, "G3").value, 0.0
+
+        pseen_mean, pseen_std = M.correct_filter_rate(d_full, grp_full, var_full, "P-seen").value, 0.0
+        punseen_mean, punseen_std = M.correct_filter_rate(d_full, grp_full, var_full, "P-unseen").value, 0.0
+        flagged_mean, flagged_std = M.flagged_rate(d_full).value, 0.0
 
         w = wilson_dict[gate]
 
@@ -278,15 +284,15 @@ def build(results_dir: str, out_prefix: str, dataset_path: str = "dataset_v1.1.c
             "FTR@30": ftr30_fmt,
             "FTR@50": ftr50_fmt,
             "FTR@70": ftr70_fmt,
-            "FNR_G2": fmt_cell(fnr_g2_mean, fnr_g2_std, w["FNR_G2"][0], w["FNR_G2"][1]),
-            "FNR_G3": fmt_cell(fnr_g3_mean, fnr_g3_std, w["FNR_G3"][0], w["FNR_G3"][1]),
-            "FNR_e2e_G2": fmt_cell(fnr_e2e_g2_mean, fnr_e2e_g2_std, w["FNR_e2e_G2"][0], w["FNR_e2e_G2"][1]),
-            "FNR_e2e_G3": fmt_cell(fnr_e2e_g3_mean, fnr_e2e_g3_std, w["FNR_e2e_G3"][0], w["FNR_e2e_G3"][1]),
+            "FNR_G2": fmt_rate_cell(fnr_g2_mean, fnr_g2_std, w["FNR_G2"][0], w["FNR_G2"][1]),
+            "FNR_G3": fmt_rate_cell(fnr_g3_mean, fnr_g3_std, w["FNR_G3"][0], w["FNR_G3"][1]),
+            "FNR_e2e_G2": fmt_rate_cell(fnr_e2e_g2_mean, fnr_e2e_g2_std, w["FNR_e2e_G2"][0], w["FNR_e2e_G2"][1]),
+            "FNR_e2e_G3": fmt_rate_cell(fnr_e2e_g3_mean, fnr_e2e_g3_std, w["FNR_e2e_G3"][0], w["FNR_e2e_G3"][1]),
             "correct_Pseen": fmt_rate_cell(pseen_mean, pseen_std, w["correct_Pseen"][0], w["correct_Pseen"][1]),
             "correct_Punseen": fmt_rate_cell(punseen_mean, punseen_std, w["correct_Punseen"][0], w["correct_Punseen"][1]),
             "correct_Plow": "—",
             "correct_Pwild": "—",
-            "flagged_rate": "0" if gate == "F0" or flagged_mean == 0 else fmt_cell(flagged_mean, flagged_std, w["flagged_rate"][0], w["flagged_rate"][1]),
+            "flagged_rate": "0" if gate == "F0" or flagged_mean == 0 else fmt_rate_cell(flagged_mean, flagged_std, w["flagged_rate"][0], w["flagged_rate"][1]),
         })
 
     df_clean = pd.DataFrame(rows_clean)
@@ -295,7 +301,7 @@ def build(results_dir: str, out_prefix: str, dataset_path: str = "dataset_v1.1.c
     # Tạo markdown đúng chuẩn bang_chinh_TEMPLATE.md
     md_content = []
     md_content.append("# Bảng chính F0–F3 — v1.1 (Số liệu thực nghiệm)\n")
-    md_content.append("> Đã chạy E1–E6 trên `dataset_v1.1.csv` (mean ± std qua 3 seed, kèm Wilson 95% CI).\n")
+    md_content.append("> Đã chạy E1–E6 trên `dataset_v1.1.csv`. FTR@30/@70 là mean ± std qua 3 seed (kịch bản mô phỏng tỉ lệ pack); FNR_G2/G3, FNR_e2e_G2/G3, correct_Pseen/Punseen, flagged_rate tính trực tiếp 1 lần trên 404 mẫu test đầy đủ — kèm Wilson 95% CI, cùng nguồn với điểm ước lượng (sửa M1: không còn trộn seed-mean với full-set CI).\n")
     md_content.append("> Dataset test = 404 mẫu · F3 khóa 0.475 · D1 khóa 6.9111 (P80 chuẩn hóa) · P-low/P-wild = \"—\" (không có ở v1.1).\n\n")
     md_content.append("## Bảng chính (FTR kèm tỉ lệ pack; FNR tách G2/G3; FNR_e2e toàn trình)\n\n")
 
@@ -305,7 +311,7 @@ def build(results_dir: str, out_prefix: str, dataset_path: str = "dataset_v1.1.c
         md_content.append(f"| {r['gate']} | {r['FTR@30']} | {r['FTR@50']} | {r['FTR@70']} | {r['FNR_G2']} | {r['FNR_G3']} | {r['FNR_e2e_G2']} | {r['FNR_e2e_G3']} | {r['correct_Pseen']} | {r['correct_Punseen']} | {r['correct_Plow']} | {r['correct_Pwild']} | {r['flagged_rate']} |")
 
     md_content.append("\n* Chú thích: `FNR_G2/G3` = tỉ lệ bỏ sót do bộ lọc loại nhầm; `FNR_e2e` = tỉ lệ bỏ sót toàn trình (bộ lọc loại HOẶC chuông D1 không kêu).")
-    md_content.append("* `±` = std qua các seed; `[...]` = khoảng tin cậy Wilson 95% CI [lo, hi].")
+    md_content.append("* `FNR_G2/G3`, `FNR_e2e_G2/G3`, `correct_Pseen/Punseen`, `flagged_rate`: tính 1 lần trực tiếp trên 404 mẫu test đầy đủ (không resample, không trung bình qua seed) — điểm ước lượng và `[...]` Wilson 95% CI [lo, hi] cùng 1 nguồn dữ liệu.")
     md_content.append("* `FTR@50` kèm Wilson 95% CI tính trực tiếp trên 404 mẫu test (kịch bản pack-ratio mặc định). `FTR@30`/`FTR@70` là mean ± std qua 3 seed từ các kịch bản mô phỏng tỉ lệ pack khác, hiện chưa có CI riêng (cần lưu thêm số đếm thô theo từng tỉ lệ) nên không hiển thị CI để tránh hiểu nhầm.*\n\n")
     md_content.append("## Bảng kiểm định McNemar (ghép cặp trên cùng 404 mẫu test)\n\n")
     md_content.append("| So sánh | b (F3 đúng, kia sai) | c (F3 sai, kia đúng) | p-value | Kết luận |")
