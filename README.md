@@ -1,5 +1,12 @@
-# UNMASK — Vỏ đổi hay lõi đổi?
-Định lượng drift do packing và giới hạn của bộ lọc dựa trên đặc trưng tĩnh · IAM302t · Nhóm 1
+# UNMASK — Vỏ đổi hay lõi đổi? *(Repacked or Novel?)*
+Định lượng **cảnh báo "drift" giả do đóng gói lại (packing-induced false drift)** khi phát hiện
+họ malware mới (novel-family detection) dựa trên đặc trưng tĩnh · IAM302t · Nhóm 1
+
+> **Lưu ý thuật ngữ (M9):** dữ liệu thu trong một khoảng thời gian ngắn, không có trục thời
+> gian thật — "drift" ở đây được **mô phỏng bằng cách thay đổi họ (family)**, không phải quan
+> sát trôi dạt theo thời gian thực tế. Vì vậy bài toán chính xác hơn là **phát hiện họ mới dưới
+> nhiễu đóng gói**, chứ chưa phải concept drift theo đúng nghĩa temporal. Xem thêm Limitation
+> trong báo cáo.
 
 > ⚠️ **Công cụ chỉ ĐỌC feature tĩnh của file PE, KHÔNG chạy file.** Đọc `docs/SAFETY.md` trước.
 
