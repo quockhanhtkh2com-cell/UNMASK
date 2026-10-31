@@ -145,3 +145,36 @@ if __name__ == "__main__":
     print("FTR:", ftr(dec, grp, alarm))
     print("FNR G2:", fnr(dec, grp, "G2"))
     print("FNR G3:", fnr(dec, grp, "G3"))
+
+
+def mcnemar_exact(a_correct: list[bool],
+                  b_correct: list[bool]) -> dict:
+    """McNemar ch?nh x?c hai ph?a b?ng binomial test.
+
+    D?ng cho s? c?p b?t ??ng nh?.
+    stat ?? NaN v? kh?ng s? d?ng th?ng k? chi-square x?p x?.
+    """
+    from scipy.stats import binomtest
+
+    if len(a_correct) != len(b_correct):
+        raise ValueError("Hai danh s?ch ph?i c? c?ng s? m?u.")
+
+    b = sum(bool(x) and not bool(y)
+            for x, y in zip(a_correct, b_correct))
+    c = sum(not bool(x) and bool(y)
+            for x, y in zip(a_correct, b_correct))
+
+    n = b + c
+    p_value = (
+        float(binomtest(
+            k=b, n=n, p=0.5, alternative="two-sided"
+        ).pvalue)
+        if n else 1.0
+    )
+
+    return {
+        "b": b,
+        "c": c,
+        "stat": float("nan"),
+        "p_value": p_value,
+    }
