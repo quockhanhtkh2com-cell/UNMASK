@@ -1,0 +1,3 @@
+detector,threshold_or_alpha,FNR_G3_filter_F3,FNR_e2e_G3_F3,FNR_e2e_G2_F3
+"D1 (Mahalanobis + percentile, hien tai)",6.9111,0.4379,0.4379,0.3273
+"D2 (Mahalanobis + p-value Transcend, M4)",0.2,0.4379,0.4379,0.4909
