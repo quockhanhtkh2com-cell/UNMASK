@@ -19,7 +19,7 @@ import schema_cols as S          # noqa: E402
 import f1_die, f2_rule           # noqa: E402
 from unmask.filter import load_filter  # noqa: E402
 
-GATES = ["F0", "F1", "F1+", "F2", "F3", "F3a"]
+GATES = ["F0", "F1-oracle", "F1-DiE", "F1-DiE+protected", "F2", "F3", "F3a"]
 
 
 def _compute_mcnemar_table(dataset_path: str, f3_config_path: str, out_csv: str):
@@ -47,6 +47,15 @@ def _compute_mcnemar_table(dataset_path: str, f3_config_path: str, out_csv: str)
             raise ValueError(f"File {die_real_path} thiếu cột 'sha256' hoặc 'die_result_real'.")
         df = df.merge(die_real[["sha256", "die_result_real"]], on="sha256", how="left")
 
+    if "die_result" not in df.columns:   # nhãn oracle (lý tưởng) từ manifest — cho gate F1-oracle
+        mcands = [os.path.join(os.path.dirname(dataset_path), "manifest_v1.1.csv"),
+                  "manifest_v1.1.csv", os.path.join("dataset", "manifest_v1.1.csv"),
+                  os.path.join(HERE, "..", "..", "dataset", "manifest_v1.1.csv")]
+        mp = next((c for c in mcands if os.path.exists(c)), None)
+        if mp is None:
+            raise FileNotFoundError(f"Không tìm thấy manifest_v1.1.csv cho F1-oracle. Đã tìm: {mcands}")
+        df = df.merge(pd.read_csv(mp)[["sha256", "die_result"]], on="sha256", how="left")
+
     df_test = df[df.split == "test"].reset_index(drop=True)
     if len(df_test) == 0:
         df_test = df
@@ -56,8 +65,9 @@ def _compute_mcnemar_table(dataset_path: str, f3_config_path: str, out_csv: str)
 
     dec = {
         "F0": ["PASS"] * len(df_test),
-        "F1": f1_die.run(df_test, variant="packed_only"),
-        "F1+": f1_die.run(df_test, variant="packed_protected"),
+        "F1-oracle": f1_die.run(df_test, variant="oracle"),
+        "F1-DiE": f1_die.run(df_test, variant="packed_only"),
+        "F1-DiE+protected": f1_die.run(df_test, variant="packed_protected"),
         "F2": f2_rule.run(df_test),
         "F3": [f3.decide(r)["decision"] for r in df_test.to_dict("records")],
         "F3a": [f3a.decide(r)["decision"] for r in df_test.to_dict("records")],
@@ -68,8 +78,8 @@ def _compute_mcnemar_table(dataset_path: str, f3_config_path: str, out_csv: str)
                 for d, g in zip(decisions, grp)]
 
     groups = df_test["group"].tolist()
-    c_f1 = is_correct(dec["F1"], groups)
-    c_f1_plus = is_correct(dec["F1+"], groups)
+    c_f1 = is_correct(dec["F1-DiE"], groups)
+    c_f1_plus = is_correct(dec["F1-DiE+protected"], groups)
     c_f2 = is_correct(dec["F2"], groups)
     c_f3 = is_correct(dec["F3"], groups)
     c_f3a = is_correct(dec["F3a"], groups)
@@ -102,7 +112,7 @@ def _compute_mcnemar_table(dataset_path: str, f3_config_path: str, out_csv: str)
 
     rows_mc = [
         {
-            "comparison": "F3 vs F1 (DiE packed)",
+            "comparison": "F3 vs F1-DiE (DiE packed)",
             "b": m1["b"], "c": m1["c"],
             "stat": round(m1["stat"], 4),
             "p_value": f"{m1['p_value']:.2e}" if m1["p_value"] < 0.001 else f"{m1['p_value']:.4f}",
@@ -110,7 +120,7 @@ def _compute_mcnemar_table(dataset_path: str, f3_config_path: str, out_csv: str)
             "conclusion": get_conclusion(m1["p_value"], p_holm[0], is_sig[0], "f1")
         },
         {
-            "comparison": "F3 vs F1+ (DiE packed+protected)",
+            "comparison": "F3 vs F1-DiE+protected (DiE packed+protected)",
             "b": m1_plus["b"], "c": m1_plus["c"],
             "stat": round(m1_plus["stat"], 4),
             "p_value": f"{m1_plus['p_value']:.2e}" if m1_plus["p_value"] < 0.001 else f"{m1_plus['p_value']:.4f}",

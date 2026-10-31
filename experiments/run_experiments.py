@@ -21,7 +21,7 @@ import f1_die, f2_rule           # noqa: E402
 from detector import DriftDetector  # noqa: E402
 from unmask.filter import UnmaskFilter, load_filter  # noqa: E402
 
-GATES = ["F0", "F1", "F1+", "F2", "F3", "F3a"]
+GATES = ["F0", "F1-oracle", "F1-DiE", "F1-DiE+protected", "F2", "F3", "F3a"]
 FEATURE_NUM = [c for c in S.FEATURE_COLS if c != "section_name_class"]
 
 
@@ -49,6 +49,16 @@ def _load_dataset(dataset_path: str, manifest_path: str | None = None, die_real_
         if "die_result_real" not in die_real.columns or "sha256" not in die_real.columns:
             raise ValueError(f"File {die_real_path} thiếu cột 'sha256' hoặc 'die_result_real'.")
         df = df.merge(die_real[["sha256", "die_result_real"]], on="sha256", how="left")
+    if "die_result" not in df.columns:   # nhãn oracle (lý tưởng) từ manifest — cho gate F1-oracle
+        mcands = [manifest_path,
+                  os.path.join(os.path.dirname(dataset_path), "manifest_v1.1.csv"),
+                  "manifest_v1.1.csv", os.path.join("dataset", "manifest_v1.1.csv"),
+                  os.path.join(HERE, "..", "..", "dataset", "manifest_v1.1.csv")]
+        mp = next((c for c in mcands if c and os.path.exists(c)), None)
+        if mp is None:
+            raise FileNotFoundError(f"Không tìm thấy manifest_v1.1.csv cho F1-oracle. Đã tìm: {[c for c in mcands if c]}")
+        man = pd.read_csv(mp)
+        df = df.merge(man[["sha256", "die_result"]], on="sha256", how="left")
     return df
 
 
@@ -94,9 +104,11 @@ def _build_f3(dataset: str, f3_config: str | None, seed: int, use_dualcheck: boo
 def _gate_decisions(gate: str, df, f3_filter, f3a_filter) -> list[str]:
     if gate == "F0":
         return ["PASS"] * len(df)
-    if gate == "F1":
+    if gate == "F1-oracle":
+        return f1_die.run(df, variant="oracle")
+    if gate == "F1-DiE":
         return f1_die.run(df, variant="packed_only")
-    if gate == "F1+":
+    if gate == "F1-DiE+protected":
         return f1_die.run(df, variant="packed_protected")
     if gate == "F2":
         return f2_rule.run(df)

@@ -1,0 +1,10 @@
+group,packer,kind,n,n_filtered,packed_score_median,packed_score_min,packed_score_max,rate_filtered
+G0,none,.NET,21,0,0.0101,0.0015,0.0191,0.0
+G0,none,native,15,0,0.0132,0.0008,0.0189,0.0
+G1,mpress,.NET,21,0,0.0073,0.002,0.0588,0.0
+G1,mpress,native,14,14,0.9694,0.9464,0.9814,1.0
+G1,upx,native,15,15,0.9732,0.8526,0.9855,1.0
+G2,none,.NET,85,0,0.0101,0.0005,0.0476,0.0
+G2,none,native,80,2,0.0027,0.0001,0.9185,0.025
+G3,mpress,.NET,82,0,0.009,0.001,0.0973,0.0
+G3,mpress,native,71,67,0.9245,0.6001,0.9766,0.944
