@@ -15,11 +15,15 @@ import numpy as np
 
 
 class DriftDetector:
-    def __init__(self, method: str = "mahalanobis", seed: int = 0, standardize: bool = True):
+    def __init__(self, method: str = "mahalanobis", seed: int = 0, standardize: bool = True,
+                 cov_estimator: str = "sample"):
         assert method in ("mahalanobis", "isolation_forest")
+        assert cov_estimator in ("sample", "ledoit_wolf")
         self.method = method
         self.seed = seed
         self.standardize = standardize
+        self.cov_estimator = cov_estimator  # M4 (Gop_y_G1.pdf): shrinkage Ledoit-Wolf
+        self.shrinkage_ = None  # he so shrinkage da hoc, chi co khi cov_estimator="ledoit_wolf"
         self._scaler_mean = None
         self._scaler_std = None
         self._mean = None
@@ -37,8 +41,16 @@ class DriftDetector:
 
         if self.method == "mahalanobis":
             self._mean = X.mean(axis=0)
-            cov = np.cov(X, rowvar=False)
-            cov += np.eye(cov.shape[0]) * 1e-6  # ổn định số học
+            if self.cov_estimator == "ledoit_wolf":
+                # M4 (Gop_y_G1.pdf): uoc luong hiep phuong sai co shrinkage, on dinh hon
+                # np.cov thuong khi so mau it (vd 62 mau) so voi so chieu (18 chieu).
+                from sklearn.covariance import LedoitWolf
+                lw = LedoitWolf().fit(X)
+                cov = lw.covariance_
+                self.shrinkage_ = float(lw.shrinkage_)
+            else:
+                cov = np.cov(X, rowvar=False)
+                cov += np.eye(cov.shape[0]) * 1e-6  # ổn định số học
             self._inv_cov = np.linalg.pinv(cov)
         else:
             from sklearn.ensemble import IsolationForest

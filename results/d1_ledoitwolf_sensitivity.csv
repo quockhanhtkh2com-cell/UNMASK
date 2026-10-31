@@ -1,0 +1,3 @@
+cov_estimator,shrinkage_coef,threshold_locked,FNR_G3_filter_F3,FNR_e2e_G3_F3,FNR_e2e_G2_F3
+"sample (goc, dang dung)",-,6.9111,0.4379,0.4379,0.3273
+ledoit_wolf (M4),0.0413,6.3125,0.4379,0.4379,0.3333
