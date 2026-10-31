@@ -29,15 +29,21 @@ from detector import DriftDetector
 from unmask.filter import load_filter
 
 from experiments.plot_style import (
-    apply_style, save_figure, GATE_ORDER, GATE_COLOR,
+    apply_style, save_figure, GATE_COLOR,
 )
+
+# Script này chỉ tính quyết định cho 5 cổng F0/F1/F2/F3a/F3 (không có F1+,
+# vốn chỉ dùng cho phân tích độ nhạy D1 riêng). GATE_ORDER của plot_style.py
+# có cả F1+ nên không dùng trực tiếp ở đây để tránh KeyError.
+GATE_ORDER = ["F0", "F1", "F2", "F3a", "F3"]
 from experiments.plot_e0b_alarm_by_group import wilson
 
 
-def plot(dataset_path, manifest_path, config_path, output):
+def plot(dataset_path, manifest_path, config_path, output, die_real_path=None):
     dtype = {"sha256": str, "origin_sha256": str}
     df = pd.read_csv(dataset_path, dtype=dtype)
     manifest = pd.read_csv(manifest_path, dtype=dtype)
+    die_real = pd.read_csv(die_real_path, dtype=dtype) if die_real_path else None
 
     with config_path.open(encoding="utf-8") as handle:
         cfg = json.load(handle)
@@ -104,6 +110,21 @@ def plot(dataset_path, manifest_path, config_path, output):
     )
     if not test["die_result"].isin(S.VALID_DIE).all():
         raise ValueError("Mẫu test thiếu kết quả DiE hợp lệ.")
+
+    # Cổng F1 (f1_die.decide) đọc cột die_result_real, lấy từ bộ quét
+    # pefile thật (results/die_real_v1.1.csv) -- khác cột die_result ở trên
+    # (nhãn suy ra từ quá trình sinh mẫu). Thiếu merge này khiến f1_die luôn
+    # trả "unknown" -> mọi mẫu bị coi là PASS, làm sai lệch cổng F1.
+    if die_real is not None:
+        test = test.drop(columns=["die_result_real"], errors="ignore")
+        test = test.merge(
+            die_real[["sha256", "die_result_real"]],
+            on="sha256",
+            how="left",
+            validate="one_to_one",
+        )
+        if test["die_result_real"].isna().any():
+            raise ValueError("Thiếu die_result_real cho một số mẫu test.")
 
     detector = DriftDetector(
         method=method, seed=0, standardize=True,
@@ -286,8 +307,15 @@ def main():
         "--out", type=Path,
         default=ROOT / "figs" / "fig_fnr_filter_vs_e2e.png",
     )
+    parser.add_argument(
+        "--die-real", type=Path,
+        default=ROOT / "results" / "die_real_v1.1.csv",
+    )
     args = parser.parse_args()
-    plot(args.dataset, args.manifest, args.config, args.out)
+    plot(
+        args.dataset, args.manifest, args.config, args.out,
+        die_real_path=args.die_real,
+    )
 
 
 if __name__ == "__main__":

@@ -158,6 +158,7 @@ def plot_e5_operating_points(df: pd.DataFrame, out_dir: Path):
         "G2": {
             "F0": (0.42, 0.10),
             "F1": (0.06, 0.35),
+            "F1+": (0.06, 0.47),
             "F2": (0.42, 0.43),
             "F3a": (0.42, 0.32),
             "F3": (0.42, 0.21),
@@ -165,11 +166,17 @@ def plot_e5_operating_points(df: pd.DataFrame, out_dir: Path):
         "G3": {
             "F0": (0.42, 0.10),
             "F1": (0.14, 0.90),
+            "F1+": (0.14, 0.78),
             "F2": (0.42, 0.62),
             "F3a": (0.42, 0.51),
             "F3": (0.42, 0.40),
         },
     }
+    # Ghi chú: toạ độ F1+ ở trên là vị trí NHÃN (label) thêm vào để tránh
+    # KeyError khi GATE_ORDER (plot_style.py) có 6 cổng nhưng dict này vốn
+    # chỉ có 5 -- không phải số liệu, chỉ là chỗ đặt chữ chú thích trên
+    # hình. Nếu nhãn "F1+" đè lên nhãn khác khi xem hình, chỉnh 2 số này
+    # (tỉ lệ 0-1 theo chiều ngang/dọc của mỗi panel) cho đẹp hơn.
 
     for group in ["G2", "G3"]:
         fig, axes = plt.subplots(
