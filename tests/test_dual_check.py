@@ -78,7 +78,10 @@ def test_fit_from_dataframe_without_val_uses_loo():
 def test_train_locks_full_config_on_mock(tmp_path):
     out = tmp_path / "lock.json"
     TR.train(MOCK, str(out))
-    cfg = json.load(open(out))
+    # Luon chi dinh encoding="utf-8" khi doc JSON: tren Windows, open() khong co
+    # encoding se dung codepage he thong (cp1252/charmap) thay vi UTF-8, va vo khi
+    # gap tieng Viet co dau (vd "KHOA DE THI" trong config/thresholds.locked.json).
+    cfg = json.load(open(out, encoding="utf-8"))
     assert cfg["locked"] is True
     assert cfg["packed_score"]["scaler"] and cfg["import_shrink"]["median_api"]
     assert cfg["dual_check"]["similarity_threshold"] > 0 and cfg["dual_check"]["reference"]
@@ -87,8 +90,8 @@ def test_train_locks_full_config_on_mock(tmp_path):
 def test_template_has_every_key_that_train_writes(tmp_path):
     out = tmp_path / "lock.json"
     TR.train(MOCK, str(out))
-    cfg = json.load(open(out))
-    tpl = json.load(open(LOCKED_TEMPLATE))
+    cfg = json.load(open(out, encoding="utf-8"))
+    tpl = json.load(open(LOCKED_TEMPLATE, encoding="utf-8"))
     assert set(tpl["dual_check"]) <= set(cfg["dual_check"])
     assert set(tpl["import_shrink"]) <= set(cfg["import_shrink"])
     assert "scaler" in tpl["packed_score"]
