@@ -31,6 +31,6 @@
 | F3 vs F1-DiE (DiE packed) | `86` | `21` | `6.13e-10` | Ý nghĩa thống kê (p_Holm = 1.84e-09 < 0.05) |
 | F3 vs F1-DiE+protected (DiE packed+protected) | `93` | `21` | `2.94e-11` | Ý nghĩa thống kê (p_Holm = 1.17e-10 < 0.05) |
 | F3 vs F2 (entropy) | `20` | `0` | `2.15e-05` | Ý nghĩa thống kê (p_Holm = 4.30e-05 < 0.05) |
-| F3 vs F3a (ablation) | `4` | `0` | `0.1336` | Không đạt ý nghĩa (p_Holm = 0.1336; p_orig = 0.1336) |
+| F3 vs F3a (ablation) | `4` | `0` | `0.1250` | Không đạt ý nghĩa (p_Holm = 0.1250; p_orig = 0.1250) |
 
 > Kết quả đo trực tiếp theo config khóa: F3=0.475, D1=6.9111 (P80 chuẩn hóa) trên 404 mẫu test độc lập.
