@@ -1,0 +1,3 @@
+tap_du_lieu,n_G0_train,n_G0_val,n_test,threshold_D1,FNR_G2_filter_F3,FNR_G3_filter_F3,FNR_e2e_G2_F3,FNR_e2e_G3_F3
+Tap day du (hien dung),62,24,404,6.9111,0.0121,0.4379,0.3273,0.4379
+Tap sach da xac minh (M5),55,21,395,5.7577,0.0,0.4379,0.2595,0.4379
